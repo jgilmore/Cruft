@@ -1,1 +1,0 @@
-../Grandstream-config/bin/encode.sh
