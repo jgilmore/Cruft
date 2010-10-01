@@ -1,0 +1,42 @@
+#!/bin/bash
+if [ "x$1" = "x" -o "x$2" != "x" ]; then
+	echo 'Usage: relearn newcat'
+	echo 'Reads each file in ~/Mail/Recat/cur/* as a message'
+	echo ' If the file contains a X-Ifile-Hint: line, it is'
+	echo ' Removed from that catagory and added to the passed catagory'
+	echo ' otherwise, it is just added to the passed category.'
+	exit 1
+fi
+
+for th in ~/Mail/Recat/cur/*; do 
+	#This first method works if the ifile hint contains only one hint.
+	cat2=`grep '^X-Ifile-Hint:' $th | cut -f 2 -d ' '`
+	echo first=$cat2
+	#This second method works if the ifile hint is "[Spam,Ham] 1.54%"
+	# I prefer this because it gives me a better idea as to when the filter
+	# will start working correctly (i.e. how much training is left)
+	cat2=`grep '^X-Ifile-Hint:' $th | cut -f 1 -d ',' | cut -f 2 -d '['`
+	echo second=$cat2
+
+	#Having determinded the category to add it to, process the message.
+	if [ "x$cat2" = "x" ]; then
+		echo no cat2, learning
+		cat "$th" | ifile.learn.message $1
+	else
+		echo cat2=$cat2, relearning
+		cat "$th" | ifile.relearn.message $cat2 $1
+	fi
+
+	#Having processed and relearned the message, move it to the correct folder,
+	#if that folder exists.
+	if [ -d ~/Mail/$1/cur ]; then
+		if mv "$th" ~/Mail/$1/cur ; then
+			echo "Successfully moved to destination $1"
+		else
+			echo "Error $? moving to ~/Mail/$1/cur"
+		fi
+	else
+		echo "NOT MOVED..."
+	fi
+
+done

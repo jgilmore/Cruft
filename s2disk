@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Possible race: if users sudo timestamp is fime for the sudo -v
+# but expires before calling s2disk, causes a problem...
+# should be rare, I'll ignore it.
+
+# Verify user/update timestamp
+sudo -v
+
+#lock screen
+dcop kdesktop KScreensaverIface lock
+
+#Suspend to disk
+sudo /usr/sbin/s2disk
+
+#Invalidate timestamp
+sudo -k

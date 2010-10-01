@@ -1,0 +1,15 @@
+#!/bin/bash
+# Public domain (C) 2001 Martin Macok <martin.macok@underground.cz>
+. /home/jgilmore/bin/ifile.settings
+
+if [ "$#" -lt "1" -o "x$1" == "x--help" ] ; then
+	echo "Usage: $0 category"
+	echo "Learns statistics about message and store it in category"
+	echo "Message expected on stdin"
+	exit 1
+fi
+
+CAT="$1"
+testcat $CAT
+
+ifile $IFILEOPTS -i "$CAT"

@@ -1,0 +1,78 @@
+#!/bin/bash
+if [ ! -d $HOME/.playnext ];then
+    mkdir $HOME/.playnext
+fi
+NAME="`pwd`"
+NAME="$HOME/.playnext/${NAME##*/}"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v)
+            echo playnext V1.0
+            exit 0
+        ;; 
+        -*)
+        cat << "EOF"
+Usage: playnext [n]
+Usage: playagain [n]
+    n: number of tracks to play
+
+The program will play the next n'th episodes from the current directory.
+If playback is interuppted for any reason, call this program as "playagain" with the same parameters
+and the playback will be restarted (allowing you to skip ahead to exactly where you where if needed)
+
+This program will remember which episode is next so you don't have to.
+This program will never refresh, and remembers only the BASE directory name, so:
+    if you add more episodes to the directory, you must manually delete the playlist from ~/.playnext
+    if you try to use this program on two different directories with the same base name, it won't work
+    right AT ALL.
+this program doesn't detect if playback is interrupted, nor remember where you where within an episode nor
+even which exact episode (if playing multiple episodes at a time) so you must remember these things manually.
+EOF
+    exit 0
+    esac
+done
+
+if [ ! -f "$NAME" ]; then
+    echo New directory, starting at the begining
+    echo "1" >"$NAME"
+fi
+
+#Create playlist if it doesn't exist
+#if it does, don't touch it (it may be edited)
+if [ ! -f "$NAME.playlist" ]; then
+    echo No pre-existing playlist found, creating new one
+    find "`pwd`" -type f  | sort >"$NAME.playlist"
+fi
+
+#Assume only play one file, but allow to play more
+NUMBER=1
+if [ $NUMBER -lt "$1" ] 2>/dev/null ; then
+    NUMBER=$1
+    shift
+fi
+
+#Grab current "next"
+NEXT=`cat "$NAME"`
+if [ "${0##*/}" = "playagain" ]; then
+    #To "playagain" subtract one and play the last one
+    echo "re-playing the last $NUMBER episode(s)"
+    NEXT=$(( $NEXT - $NUMBER ))
+else
+    #To "playnext" add one and store for the next time.
+    echo "preparing to play the next $NUMBER episode(s).."
+    echo $(( $NEXT + $NUMBER )) > "$NAME"
+fi
+
+if [ "$1" = "reset" ]; then
+    NEXT=1
+    shift
+fi
+
+
+#Grab the $NEXT'th $NUMBER line(s) of the playlist
+echo "playing the $NEXT'th $NUMBER files"
+head "$NAME.playlist" -n $(( $NEXT + $NUMBER - 1 )) | tail -n $NUMBER >/tmp/playnext
+
+#And play that file(s)
+mplayer -fs -nojoystick -playlist /tmp/playnext

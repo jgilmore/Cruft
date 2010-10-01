@@ -1,0 +1,8 @@
+#!/usr/bin/perl -w
+use strict;
+use Encode qw(:fallback_all);
+while(<>)
+{
+	Encode::from_to($_, "utf8","ascii-ctrl",LEAVE_SRC);
+	print;# encode("ascii-ctrl",$_);
+}

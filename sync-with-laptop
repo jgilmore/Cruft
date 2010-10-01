@@ -1,0 +1,29 @@
+#!/bin/bash
+
+LIST='.azureus .cdargs .cdargs~ .cdargsresult .cdcdrc .cddb .cdserverrc .djvurc .dmrc .easytag .egoboo .evolution  .gaim  .openoffice .openoffice.org2 .pysol .tome .vim .viminfo .vimrc .windows-label .wine .xchat2 .xcompmgrrc'
+
+echo rsync --recursive --links --perms --times --one-file-system --update\
+ ${LIST} * 192.168.1.51:
+
+rsync --recursive --links --perms --times --one-file-system --update\
+ ${LIST} * 192.168.1.51:
+
+for th in $LIST;do
+RLIST=$RLIST :$th
+done
+
+echo rsync --recursive --links --perms --times --one-file-system --update\
+ 192.168.1.51:.adobe $RLIST .
+
+rsync --recursive --links --perms --times --one-file-system --update\
+ 192.168.1.51:.adobe $RLIST .
+
+# Recommended "backup" args (-a does these)
+#-rlptgoD 
+#-r --recusive
+#-l --links
+#-p --perms
+#-t --times
+#-g --group
+#-o --owner
+#-D --devices --specials

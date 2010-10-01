@@ -1,0 +1,45 @@
+#!/bin/bash
+
+cd ~/Mail
+
+Folders="Spam TOME NCLUG Reiser4 LDSN CC inbox ebay root freecycle"
+rm ~/.idata
+
+#These are the allowed catagories
+echo "" | ifile -i Ham
+echo "" | ifile -i Spam
+echo "" | ifile -i ebay
+
+for thr in *; do 
+	case $thr in
+	Spam)
+		echo "Processing Spam: $thr"
+		for th in $thr/cur/*; do 
+			cat "$th" | grep -v "X-Ifile-Hint:" | ifile.learn.message Spam 2>/dev/null
+			echo -n .
+		done
+		echo ""
+		;;
+	ebay)
+		echo "Processing ebay: $thr"
+		for th in $thr/cur/*; do 
+			cat "$th" | grep -v "X-Ifile-Hint:" | ifile.learn.message ebay 2>/dev/null
+			echo -n .
+		done
+		echo ""
+		;;
+	CC|sent-mail|trash|freecycle|root|NCBA|SIP)
+		echo "Skipping Folder $thr"
+		;;
+	*)
+		echo "Processing Ham: $thr"
+		for th in $thr/cur/*; do 
+			cat "$th" | grep -v "X-Ifile-Hint:" | ifile.learn.message Ham 2>/dev/null
+			echo -n .
+		done
+		echo ""
+		;;
+	esac
+done
+echo Done!
+

@@ -1,0 +1,9 @@
+core.*
+*cache*
+*Cache*
+*Thumbnail*
+*thumbnail*
+.cpan*
+.Trash*
+*.o
+*~

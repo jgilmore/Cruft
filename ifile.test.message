@@ -1,0 +1,15 @@
+#!/bin/bash
+# Public domain (C) 2001 Martin Macok <martin.macok@underground.cz>
+. /home/jgilmore/bin/ifile.settings
+if [ "$#" != "0" -o "x$1" == "x--help" ] ; then
+	echo "Usage: $0 "
+	echo "Prints theoretical category of message.\
+	      Message expected on stdin."
+	exit 1
+fi
+
+
+# This prints out the main folder
+#ifile -v 0 $IFILEOPTS -q | head -1 | cut -f 1 -d " "
+#This, on the other hand, prints the main and secondary folders with a percentage difference
+ifile -q  -T99 -v 0 | tail -n 2 | head -1 | cut -c 5-

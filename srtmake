@@ -1,0 +1,8 @@
+#!/bin/bash
+cat -i $1/*.vob | tcextract -x ps1 -t vob -a 0x21 | subtitle2pgm -o english -c 255,0,255,255
+pgm2txt english 
+srttool -s -w < english.srtx > english2.srt
+sed -f /usr/share/subtitleripper/gocrfilter_en.sed english2.srt > english.srt
+ispell -d american english.srt
+vim english.srt
+ogmmerge -o "title.ogm" -c "TITLE=title" 001.ogm -c "LANGUAGE=English" english.srt

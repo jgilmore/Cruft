@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+#  batch-string-rename - Batch script to rename with replaced strings
+#
+#  Usage: batch-string-rename STRING_TARGET STRING_REPLACE FILETYPE
+#
+#  Example: batch-string-rename "_" "\ " mp3
+#    will call string-rename and batch process rename all mp3 files
+#
+#  tkchan@rescomp.berkeley.edu
+#
+
+case $# in
+  3)
+     ls *.$3 | sed "s/[ ]/?/g" > .temp.filelist
+     for i in $(cat .temp.filelist); do
+     string-rename "$1" "$2" "$i";
+     done
+     rm .temp.filelist
+     ;;
+  *)
+     echo "Usage: batch-string-rename STRING_TARGET STRING_REPLACE FILETYPE"
+     echo
+     echo "Example: batch-string-rename \"_\" \"\ \" mp3"
+     echo "   will call string-rename and batch process rename all mp3 files"
+     echo "   replacing all \"_\" with \" \""
+     exit 1
+esac
+exit 0
+

@@ -1,0 +1,4 @@
+#!/bin/bash
+mount /windows/C
+wine /windows/C/quickenw/qw.exe
+umount /windows/C

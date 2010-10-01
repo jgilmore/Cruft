@@ -1,0 +1,206 @@
+#!/bin/bash
+# Configuration section
+LIBRARY=~/Music
+CACHEDLIST=~/.cached_playlist.m3u
+FILE=~/.playlist
+MASTERHOST=herb
+hostname=`cat /etc/hostname`
+if [ -e $FILE ]; then
+	rm $FILE
+fi
+# Arguments are processed in three stages: switch, directory, and word
+# Process through switch arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v)
+            echo Play Random V1.1
+        ;; 
+		-r)
+			echo Regenerating the cached local file list.
+			if [ -w "$LIBRARY" -a $hostname = $MASTERHOST ]; then
+				echo Also regenerating non-local file list for remote playing
+			fi
+			
+			find -L "$LIBRARY" > "$CACHEDLIST"
+
+			if [ -w "$LIBRARY" -a $hostname = $MASTERHOST ]; then
+				echo Starting generation of the non-local list
+				cat "$CACHEDLIST" | sed "s'^$LIBRARY/'http://$hostname/'" > "$LIBRARY/.master_playlist.m3u"
+			fi
+			echo done
+			exit
+		;;
+        -*)
+            cat <<'EOF'
+usage: playrandom [-v] [-h|--help|-?] [directory...] [word...]
+usage: playme [-v] [-h|--help|-?] [directory...] [word...]
+usage: playonce [-v] [-h|--help|-?] [directory...] [word...]
+usage: playmeonce [-v] [-h|--help|-?] [directory...] [word...]
+    -v: version
+    -h|--help|-?: print this help
+    [directory...]: names of directories to gather files from. If ommited,
+        the "library" directory ($LIBRARY) will be used, and the keyword
+        "not audiobooks" is assumed.
+    [word...]: keywords (not case sensitive) Files not matching will not be
+        played. Regex cheerfully accepted.
+
+if called as "playme" the music list will be sorted instead of randomized.
+if called as "playonce" each song will be played exactly once.
+if called as "playrandom" the list will be randomized and looped indefinately
+examples:
+
+play all music with "elmo" in it anywhere
+
+    playrandom elmo
+
+Play any music with either waltz or wedding in the name, unless it also has
+either blue, or tango.
+
+    playrandom waltz or wedding not blue or tango
+
+Play music with ALL of waltz, wedding, AND tango, unless it also has "blue"
+
+    playrandom waltz wedding not blue tango
+
+Play music from the "classical" directory by mozart
+
+playrandom classical mozart
+
+
+EOF
+        ;;
+        *)
+        break
+        ;;
+    esac
+    shift
+done
+
+# Process through directory arguments
+while [ $# -gt 0 ]; do
+    #Add directories ONLY if there's been no word yet.
+    if [ -d "$1" ]; then
+        LIBRARY=$1
+        if [ "${LIBRARY#/}" = "$LIBRARY" ];then
+            LIBRARY=`pwd`/$LIBRARY
+        fi
+        #Note that the only restriction here is to ogg or mp3 - no excluding audiobooks
+        find -L "$LIBRARY" | grep -i '\.\(mp3\)\|\(ogg\)$' >> $FILE
+        echo Adding files from directory "$LIBRARY"
+        echo found `cat $FILE | wc -l` songs so far
+    else
+        break
+    fi
+    shift
+done
+
+# If the playlist isn't built yet, build it!
+if [ ! -e $FILE ]; then
+    PATTERN='\.\(mp3\)\|\(ogg\)$'
+	(
+		#insert http remote list checking here.
+		if [ $hostname != $MASTERHOST ]; then
+			cd
+			if wget --tries=1 --timestamping --no-host http://$MASTERHOST/.master_playlist.m3u 2>/dev/null; then
+				if [ ! -e ~/.remote_playlist.m3u -o ~/.master_playlist.m3u -nt ~/.remote_playlist.m3u ]; then
+					#We got a new remote master list, update the local copy of remote lists.
+					#Strategy: create a copy of the local list modified to "look" like they would if
+					#retrieved from the remote machine. 
+					#Then, cat with the remote list, sort, and use "uniq -u" to discard duplicates. Done
+					cat "$CACHEDLIST" | sed "s'^$LIBRARY/'http://$MASTERHOST/'" > "~/.remote_playlist.m3u.temp"
+					cat ~/.master_playlist.m3u ~/.remote_playlist.m3u.temp | sort | uniq -u >~/.remote_playlist.m3u
+					rm ~/.remote_playlist.m3u.temp
+				fi
+				echo remote master is available, using local and remote lists. 1>&2
+				cat $CACHEDLIST ~/.remote_playlist.m3u 
+			else
+				echo no remote host is available, play just local files. 1>&2
+				cat $CACHEDLIST 
+
+			fi
+		else
+			echo I am the master host, using my local files. 1>&2
+			cat $CACHEDLIST
+		fi
+	) | grep -i "$PATTERN" | grep -v 'Audiobooks' >> $FILE
+    echo found `cat $FILE | wc -l` songs so far
+fi
+
+# Process through Keyword arguments
+while [ $# -gt 0 ]; do
+    # "and" is redundant, ignore it
+    if [ "$1" = "and" ]; then
+        shift
+        continue
+    elif [ "$1" = "not" ]; then
+        v_opt=-v
+        shift
+        continue
+    fi
+    PATTERN=$1
+    # Iteratively process the "or" operator by building $PATTERN into a regex
+    while [ "$2" = "or" -a "$3" != "" ]; do
+        # 1st is our pattern, 2nd is "or" and a third exists, so combine them.
+        echo Found \"or\" clause: $PATTERN $2 $3
+        PATTERN="\($PATTERN\)\|\($3\)"
+        shift
+        shift
+    done
+    echo Word restriction to $v_opt "$PATTERN"
+    cat $FILE | grep -i $v_opt "$PATTERN" > ${FILE}.temp
+    mv ${FILE}.temp $FILE
+    echo Songs so far: `cat $FILE | wc -l`
+    v_opt=
+    shift
+done
+
+
+# Count songs and report
+FILELINES=`cat $FILE | wc -l`
+echo $FILELINES lines in $LIBRARY library when all was said and done.
+if [ "$FILELINES" -eq 0 ];then
+    echo "I'm Sorry, no music matching that description was found."
+    exit 1
+fi
+
+if [ "${0##*/}" = "playme" -o "${0##*/}" = "playmeonce" ]; then
+    #For playme, sort the playlist.
+    echo Sorting Playlist
+    sort $FILE >$FILE.random
+else
+    #For playonce or playrandom, randomize the playlist
+    # Randomly assemble new file, one line at a time.
+    # Each time through the loop, pick one line, add it to the random
+    # file and remove it from the non-random file.
+    echo Randomizing Playlist
+    sort -R $FILE >$FILE.random
+#    LINELIST=`bash -c "echo {$FILELINES..1}"`
+#    rm ${FILE}.random
+#    for th in $LINELIST;do
+#        SONGNUM=$(( $RANDOM % $th + 1 ))
+#        SONG=`head -$SONGNUM $FILE | tail -1`
+#        echo "$SONG" >>${FILE}.random
+#        head -$(($SONGNUM - 1)) $FILE >> ${FILE}.temp
+#        tail -$(($th - $SONGNUM)) $FILE >>${FILE}.temp 
+#        rm $FILE
+#        mv ${FILE}.temp $FILE
+#        echo -ne $th "\r"
+#    done
+fi
+    
+#Displaylist
+if [ "$FILELINES" -lt 60 ] ; then
+    cat $FILE
+fi
+
+#Forever, play a random song.
+while mplayer -nojoystick -playlist ${FILE}.random ; do 
+    if [ "$FILELINES" -lt 60 ] ; then
+        cat $FILE
+    fi
+    if [ "${0##*/}" = "playonce" -o "${0##*/}" = "playmeonce" ]; then
+        exit
+    fi
+done
+
+exit 0

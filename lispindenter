@@ -1,0 +1,39 @@
+#!/usr/bin/perl -w
+use strict;
+use IPC::Open2;
+my ($incoming,$outgoing,$WRLISP,$RDLISP);
+
+#capture the incoming text.
+while (<>){$incoming.=$_}
+
+
+#Filter it through lisp indenting
+open2($RDLISP,$WRLISP,"lisp","-batch","-quiet");
+print $WRLISP "(pprint '$incoming)\n";
+close $WRLISP || die "couldn't close lisp write pipe:$!\n";
+while(<$RDLISP>){$outgoing.=$_;}
+#print $incoming;
+$outgoing =~ s'^\*..''s;
+$outgoing =~ s/.$//s;
+#print $outgoing;
+
+	my($in,$out);
+sub next_in { exit(0) unless $incoming=~s/(.)//s; $in=$1; }
+sub next_out{ exit(0) unless $outgoing=~s/(.)//s; $out=$1;}
+#replace, preserving text from in and whitespce from out.
+# This may ge royally screwed by things not printing the same on output.
+# in case we get messed up, print all chars from input, up to the next (),
+# and discard all chars from output, up to the next ().
+
+next_in();
+next_out();
+while($out =~ /./s )
+{
+	if($in  =~ /\s/){           next_in(); next;}
+	if($out =~ /\s/){print $out;next_out();next;}
+	if(uc $in eq uc $out or $in eq $out){
+		print $in;next_in();next_out();next;
+	}
+	while($out !~ /[)(]/){next_out();}
+	while($in  !~ /[)(]/){print $in;next_in() ;}
+}

@@ -1,0 +1,7 @@
+#!/bin/bash
+while true; do
+    azureus &
+    sleep 9h
+    kill $! 
+    sleep 13h
+done 

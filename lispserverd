@@ -1,0 +1,68 @@
+#!/usr/bin/perl -w
+use strict;
+use IPC::Open2;
+use Fcntl;
+use lisplib;# || die "Could't read lisplib routines and config:$!\n";
+
+my ($WRLISP,$RDLISP,$WREDIT,$RDEDIT);
+my ($rin,$firsttime,$pid);
+
+dofifo($infifoname);dofifo($outfifoname);
+sysopen($RDEDIT,$infifoname,O_RDONLY|O_NONBLOCK) || die "couln't open outfifo:$!\n";
+
+($pid = open2($RDLISP,$WRLISP,"lisp")) || die "Couldn't start lisp:$!\n";
+$SIG{TERM}= $SIG{PIPE}= $SIG{FPE}= $SIG{SEGV}= $SIG{CHLD}=
+$SIG{INT}=$SIG{HUP}= sub { 
+	kill SIGKILL => $pid; 
+	system("rm",$infifoname);
+	system("rm",$outfifoname);
+	die "died properly, and took lisp with me.\n"; 
+	};
+
+#Snippet of code to list the signal names that we can (attempt to) trap.
+#foreach $main::key (keys %SIG){ print "$main::key,"; } print "\n";
+
+
+
+$firsttime=1;
+while(1)
+{
+	#Die if lisp died
+	unless(kill 0 => $pid){
+		die "Lisp died on me!\n";
+	}
+	my($ready,$buf);
+	#print("before select\n");
+	$rin="";
+	vec($rin,fileno($RDEDIT),1) = 1;
+	vec($rin,fileno($RDLISP),1) = 1;
+	select($ready=$rin,undef,undef,undef);
+	#print("after select\n");
+	if(vec($ready,fileno($RDEDIT),1) == 1){
+		#print "reading from editor:";
+		if( sysread($RDEDIT,$buf,8192) == 0){
+			#print "zlr:reopening$!\n";
+			sysopen($RDEDIT,$infifoname,O_RDONLY|O_NONBLOCK) || die "couln't open outfifo:$!\n";
+			if( sysread($RDEDIT,$buf,8192) == 0){
+				#print "Nope! still zero-length read...\n";
+			}
+		}
+		#print $buf;print "\n";
+		syswrite($WRLISP,$buf);
+	}
+	elsif(vec($ready,fileno($RDLISP),1) == 1){
+		#print "reading from lisp:";
+		#This SHOULD be non-blocking.
+		sysread($RDLISP,$buf,8192);
+		#print $buf;print "\n";
+		if($firsttime){$firsttime=0;next;}
+		sysopen($WREDIT,$outfifoname,O_WRONLY);
+		syswrite($WREDIT,$buf);
+		close($WREDIT);
+	}
+	else{
+		die "Why, Oh Why?:$!\n";
+	}
+	#print "cycle complete\n";
+}
+

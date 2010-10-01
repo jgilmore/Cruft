@@ -1,0 +1,18 @@
+#!/bin/bash
+# Public domain (C) 2001 Martin Macok <martin.macok@underground.cz>
+. /home/jgilmore/bin/ifile.settings
+
+if [ "$#" -lt "2" -o "x$1" == "x--help" ] ; then
+	echo "Usage: $0 oldcategory newcategory"
+	echo "Relearns statistics about message and store it in newcategory"
+	echo "Message expected on stdin"
+	exit 1
+fi
+
+OLDCAT="$1"
+NEWCAT="$2"
+testcat "$OLDCAT" "$NEWCAT"
+
+
+# for ifile <1.0.3 substitute "-u" with "-i"
+ifile $IFILEOPTS -d "$OLDCAT" -u "$NEWCAT"

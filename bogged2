@@ -1,0 +1,652 @@
+#!/usr/bin/tclsh
+# the next line restarts using wish
+#exec wish8.3 "$0" "$@"
+package require Tk 8.3
+
+#
+# Bogged is Copyright 1998 Todd David Rudick
+# Released under the Gnu general public license,
+# except for the provision that nobody may 
+# remove this notice or any of the begging
+# screens, nor may additional begging be added
+# in any way. I.e., the buck stops with me.
+#
+
+set tk_strictMotif 1
+set goodWordList {}
+set gameBeingPlayed 0
+wm title . "bogged"
+
+pack [frame .control] -side bottom -expand 1 -fill x
+pack [button .control.new -text "Start Game" -command startGame] -side left -expand 1
+
+pack [button .control.quit -text "Give up" -state disabled -command quitGame] -side left -expand 1
+pack [button .control.help -text "Help" -command {helpDialog} ] -side left -expand 1
+pack [button .control.about -text "About" -command aboutDialog] -side left -expand 1
+pack [button .control.exit -text "Exit Program" -command quitDialog] -side left -expand 1
+
+pack [frame .buttons] -side left -expand 1 -fill both
+
+pack [label .buttons.l2 -text "Letter Cubes"] -side top -anchor w
+
+pack [frame .buttons.e -border 3 -relief ridge] -side bottom -fill both -expand 1
+pack [entry .buttons.e.e -textvariable .buttons.e.e.text] -side top -fill x -expand 1
+
+pack [button .buttons.e.add -text "Add Word to List" -command "addWordToList;.buttons.e.clear invoke"] -side left -expand 1
+pack [button .buttons.e.clear -text "Clear" -command {set .buttons.e.e.text ""}] -side left -expand 1 
+		
+#this determines letter frequency. Uppercase only for display, should work
+#just fine if you set them to lowercase.
+#My dictionary has the following letter frequencies:
+#          967: j
+#         1037: q
+#         1449: x
+#         2068: z
+#         4883: w
+#         4929: k
+#         5432: v
+#         7563: f
+#         7888: y
+#        10047: b
+#        11794: h
+#        14065: m
+#        15545: p
+#        17169: g
+#        17821: u
+#        21433: c
+#        21473: d
+#        27469: l
+#        31386: o
+#        36736: t
+#        37788: n
+#        38089: r
+#        38806: a
+#        46606: i
+#        47740: s
+#        62113: e
+#From the above I generated the following frequency string. It
+#results in LOTS of words - averaging well over one hundred. 
+#BUT! their boring words. So I use the one below.
+#set charString "EEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBEEEEEESSSSIIIIAAARRRNNNTTTOOOLLDDCCUGPMHBYYYYYYYFFFFFFFVVVVVKKKKWWWWZZXQJ"
+#Original string - exactly even frequencies
+#set charString "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+#Extra vowels
+set charString "AOEUIYSRABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+#aoeuiy get quad freq, srnty get double.
+#set charString "SRNTYAEIOUYSABCDEFGHIJKLMNOPQRSTUVWXYZAEIOUYSABCDEFGHIJKLMNOPQRSTUVWXYZ"
+set lowerCharString [string tolower $charString]
+set strlenCharString [string length $charString]
+
+set width 4
+set height 4 
+pack [frame .buttons.bf -border 3 -relief ridge] -side top -ipadx 5 -ipady 5 -expand 1 -fill both
+
+#Create the actual grid of buttons
+for {set j 0} {$j<$height} {incr j} {
+	pack [frame .buttons.bf.$j] -expand 1 -fill both -side top
+	for {set i 0} {$i<$width} {incr i} {
+		button .buttons.bf.$j.$i -text [string index $charString \
+				[expr ($i+$width*$j)%$strlenCharString]] -command " \
+				addLetter \[lindex \[.buttons.bf.$j.$i configure -text\] end\]"
+		pack  .buttons.bf.$j.$i -expand 1 -side left
+	}
+}
+
+pack [label .buttons.l -text "Word"] -side left
+
+pack [frame .wordsnscore] -side right
+pack [frame .wordsnscore.score] -side top
+pack [label .wordsnscore.score.scoreA -text "Average Score: 0%"] -side top -anchor w
+pack [label .wordsnscore.score.scoreN -text "Found 0 words from a maximum of 0 (0%)."] -side left
+pack [frame .wordsnscore.words -border 0 -relief flat] -side bottom -expand 1 -fill both
+pack [scrollbar .wordsnscore.words.scroll -command ".wordsnscore.words.list yview"] -side right -expand 1 -fill y
+
+pack [text .wordsnscore.words.list -width [expr 17*3] -height 14 -state disabled -yscrollcommand ".wordsnscore.words.scroll set" ] -expand 1 -fill both 
+
+proc myrandom {mod} {
+	global random_seed
+	if {![info exists random_seed]} {
+		set random_seed [expr [clock seconds]*1699396481+[pid]*4573931]
+	#	package require stdlib
+	#	srandom $random_seed
+	}
+	#set random_seed [expr ($random_seed+1699396481)*49551709-27011+[clock seconds]+1]
+	#set random_seed random
+	set random_seed [expr [expr $random_seed * 279470273 ]% 4294967291]
+	return [expr ($random_seed/(256*1024))%($mod)]
+
+
+}
+
+proc randomizeButtons {} {
+	global i
+	global j
+	global charString
+	global strlenCharString
+	global height
+	global width
+	global buttonLetter
+	global lowerCharString
+	set vowels 0
+	while {$vowels<3} {
+		set vowels 0
+		for {set i 0} {$i<$height} {incr i} {
+			for {set j 0} {$j<$width} {incr j} {
+				set r [myrandom $strlenCharString]
+				if { [string index $lowerCharString $r] == "q" } {
+					.buttons.bf.$j.$i configure -text "Qu"
+					set buttonLetter([expr $i+$width*$j]) "qu"
+				} else {
+					.buttons.bf.$j.$i configure -text [string index $charString $r]
+					set buttonLetter([expr $i+$width*$j]) [string index $lowerCharString $r]
+					if {[string first [string index $lowerCharString $r] "aeiou"] !=-1} { incr vowels }
+				}
+			}
+		}
+	}
+}
+
+proc addLetter {l} {
+	global .buttons.e.e.text
+	set newText ${.buttons.e.e.text}${l}
+	if {[checkWord [string tolower $newText]]} {
+		set .buttons.e.e.text "${.buttons.e.e.text}${l}"
+	}
+}
+trace variable .buttons.e.e.text w checkLowerEntry
+
+proc checkLowerEntry {args} {
+	global .buttons.e.e.text
+	set t [string tolower ${.buttons.e.e.text}]
+	if {$t!=${.buttons.e.e.text}} {
+		set .buttons.e.e.text $t
+	}
+}
+
+bind .buttons.e.e <Key> {
+	if {[checkNewWord "%A"]==0} {break}
+}
+
+bind .buttons.e.e <Return> {
+   .buttons.e.add invoke 
+}
+
+# return 0 for a bad key, 1 for a good key, and 2 for a special 
+# (non-alpha) key, and 3 for return
+proc checkNewWord {char} {
+	global .buttons.e.e.text
+	global lowerCharString;
+	if {$char=="\n"} {return 3}
+	if {[string length $char]!=1} {return 2}
+	set char [string tolower $char]
+	if {[string first $char $lowerCharString]==-1} {return 2}
+	if {[checkWord ${.buttons.e.e.text}${char}]} {return 1} else {return 0}
+}
+
+proc checkWord {word} {
+	global possible2Letters
+	global width
+	global height
+	global buttonLetter
+	set l [string length $word]
+	if {$l==0} {return 0}
+
+
+	# This checks to see if all connections in the word are possible
+	for {set i 0} {$i<$l-1} {incr i} {
+		set c "[string index $word $i][string index $word [expr $i+1]]"
+		if { [string index $word $i] == "q" } { 
+			if { [string index $word [expr $i+1]] != "u"} {continue }
+			if { [expr $i+1] == [expr $l-1 ] } {continue }
+			set c "qu[string index $word [expr $i+2]]"
+			incr i
+		}
+		if { [string index $word [expr $i +1]] == "q" } {
+			set c "[string index $word $i]qu"
+		}
+		if {![info exists possible2Letters]} { return 0}
+		if {![info exists possible2Letters($c)]} {return 0}
+		if {!($possible2Letters($c))} {return 0}
+	}
+
+	#This checks to see that the word can actually be FORMED on the bogged playing board.
+	for {set i 0} {$i<$width} {incr i} {
+		for {set j 0} {$j<$height} {incr j} {
+			set ci [expr $i+$width*$j]
+			if {![info exists buttonLetter]} {return 0}
+			if {![info exists buttonLetter($ci)]} {return 0}
+			set c [string index $buttonLetter($ci) 0]
+			if {$c==[string index $word 0]} {
+				set buttonLetter($ci) *
+				if { $c == "q" && [string index $word 1] == "u" } {
+					set stat [checkWord2 2 $word $i $j]
+				} else {
+					set stat [checkWord2 1 $word $i $j]
+				}
+				set buttonLetter($ci) $c
+				if {$stat} {return 1}
+			}
+		}
+	}
+	return 0
+}
+
+# Having found letter $index of a word, search around it for letter
+# [expr $index+1]. Then it calls itself recursively, after setting the 
+# found letter to "*". 
+proc checkWord2 {index word x y} {
+	global width
+	global height
+	global buttonLetter
+
+	if {$index==[string length $word]} {return 1}
+	set minx [expr $x-1]
+	if {$minx<0} { set minx 0}
+	set maxx [expr $x+1]
+	if {$maxx>=$width} { set maxx [expr $width-1] }
+	set miny [expr $y-1]
+	if {$miny<0} { set miny 0}
+	set maxy [expr $y+1]
+	if {$maxy>=$height} { set maxy [expr $height-1] }
+	for {set i $minx} {$i<=$maxx} {incr i} {
+		for {set j $miny} {$j<=$maxy} {incr j} {
+			set ci [expr $i+$width*$j]
+			set c $buttonLetter($ci)
+			if {$c==[string index $word $index]} {
+				set buttonLetter($ci) *
+				if { $c == "q" && [string index $word [expr $index +1]] == "u" } {
+				puts "yes!\n"
+					set stat [checkWord2 [expr $index+2] $word $i $j]
+				} else {
+					set stat [checkWord2 [expr $index+1] $word $i $j]
+				}
+				set buttonLetter($ci) $c
+				if {$stat} {return 1}
+			}
+		}
+	}
+	return 0
+}
+
+proc listFilterWords {} {
+	global width
+	global height
+	global buttonLetter
+	global charString
+	global strlenCharString
+	global possible2Letters
+	global lowerCharString
+	global maxWords
+	global foundWords
+	global dictionaryFiles
+	set foundWords {}
+
+	setListText "Wait while I look for words\n"
+
+	for {set i 0} {$i<$strlenCharString} {incr i} {
+		for {set j 0} {$j<$strlenCharString} {incr j} {
+			set a [string index $lowerCharString $i]
+			set b [string index $lowerCharString $j]
+			if { $a=="q" } { set a "qu" }
+			if { $a=="q" } { set b "qu" }
+			set possible2Letters(${a}${b}) 0
+		}
+	}
+
+	for {set i 0} {$i<$width} {incr i} {
+		for {set j 0} {$j<$height} {incr j} {
+			for {set di -1} {$di<2} {incr di} {
+				for {set dj -1} {$dj<2} {incr dj} {
+					set x [expr $di+$i]
+					set y [expr $dj+$j]
+					if {($x>=0)&&($x<$width)&&($y>=0)&&($y<$height)&&\
+							(!(($dj==0)&&($di==0)))} {
+						set ci1 [expr $x+$width*$y]
+						set ci2 [expr $i+$width*$j]
+						set c1 $buttonLetter($ci1)
+						set c2 $buttonLetter($ci2)
+						set tmp ${c1}${c2}
+						set possible2Letters($tmp) 1
+						set tmp ${c2}${c1}
+						set possible2Letters($tmp) 1
+					}
+				}
+			}
+		}
+	}
+	set letters ""
+	for {set i 0} {$i<$width} {incr i} {
+		for {set j 0} {$j<$height} {incr j} {
+			set c $buttonLetter([expr $i+$width*$j])
+			set letters ${letters}${c}
+		}
+	}
+
+	set files $dictionaryFiles
+	insertListText "Searching $files\n(set the environment variable DICTIONARY\nto override this)\n" 
+	set com "| zcat -f $files | grep ^\[$letters\]\[$letters\]\[$letters\]\[$letters\]*$"
+	
+	set wordList ""
+	if {  [catch {
+		set f [open "$com" r]
+		set maxWords 0
+		while {![eof $f]} {
+			set word [string trim [gets $f]]
+			if {([checkWord $word])&&([lsearch -exact $wordList $word]==-1)} {
+				lappend wordList $word
+				incr maxWords
+			}
+		}
+		close $f
+	}]} {
+		return {}
+	}
+	.wordsnscore.words.list delete 1 end
+	if {$maxWords==1} {set word "word"} else {set word "words"}
+	setListText "Try to find all $maxWords $word I found.\n"
+	update
+	return $wordList
+}
+
+proc insertListText {text} {
+	.wordsnscore.words.list configure -state normal
+
+	.wordsnscore.words.list mark set bend "end-1 line"
+	.wordsnscore.words.list mark gravity bend left
+	.wordsnscore.words.list insert end $text
+	.wordsnscore.words.list tag add smallRed bend "end-1 line"
+	.wordsnscore.words.list tag configure smallRed -foreground "#ff0000"
+	.wordsnscore.words.list configure -state disabled
+	update
+}
+
+proc setListText {text} {
+	.wordsnscore.words.list configure -state normal
+	catch {.wordsnscore.words.list delete 1.0 "end-1 line"}
+	.wordsnscore.words.list insert end $text
+	.wordsnscore.words.list configure -state disabled
+	update
+}
+
+# sort & display the wordList, red unless the word ends in -,
+# which won't be displayed
+proc displayWords {wordList} {
+	set i 0
+	set maxl 0
+	foreach word $wordList {
+		set l [string length $word]
+		if {$l>$maxl} {set maxl $l}
+	}
+	incr maxl 2
+	set columns [expr (17*3)/$maxl]
+	#if { $columns > 6 } 
+	#Tabstops are at eight, and this way 
+	#porportional fonts don't screw things up.
+	set columns 6
+
+	.wordsnscore.words.list configure -state normal
+	catch {.wordsnscore.words.list delete 1.0 "end-1 line"}
+	set newList [lsort $wordList]
+	foreach word $newList {
+		set high [expr [string first - $word]!=-1]
+		if {$high} {
+			.wordsnscore.words.list mark set bend "end-1 chars"
+			.wordsnscore.words.list mark gravity bend left
+		}
+
+		set word [string trim $word " -"]
+		if {$high} { 
+			set word [string range \
+					"[string toupper $word]	" 0\
+					[expr $maxl-1]]
+		 } else {
+			set word [string range "$word	" 0 \
+					[expr $maxl-1]]
+		}
+		incr i
+		if {$i==$columns} { set word "$word\n" ; set i 0}
+		.wordsnscore.words.list insert end $word
+
+		if {$high} {
+			.wordsnscore.words.list mark set eend "end-2 chars"
+			.wordsnscore.words.list mark gravity eend left
+			.wordsnscore.words.list tag add fWord bend eend
+			.wordsnscore.words.list tag configure fWord -borderwidth 2 \
+					-background "#e0e0e0" -relief \
+					raised -foreground "#000000"
+		}
+	}
+
+	.wordsnscore.words.list insert end "\n\n"
+	.wordsnscore.words.list configure -state disabled
+	update
+}
+
+set foundWords {}
+set maxWords 0
+set totalWords 0
+set totalFound 0
+
+proc updateAverage {args} {
+	global totalWords
+	global totalFound
+	if {$totalFound==0} {set p 0} else {
+		set p [expr $totalFound*100/$totalWords]
+	}
+	.wordsnscore.score.scoreA configure -text "Average Score: $p%"
+}
+
+proc updateFoundMaxWords {args} {
+	global foundWords
+	global maxWords
+	set foundWordCount [llength $foundWords]
+	if {$maxWords==0} {set p 0} else {
+		set p [expr $foundWordCount*100/$maxWords]
+	}
+	if {$foundWordCount==1} {set word word} else {set word words}
+	.wordsnscore.score.scoreN configure -text "Found $foundWordCount $word from a maximum of $maxWords (${p}%)."
+	update
+}
+
+proc addWordToList {} {
+	global totalFound
+	global goodWordList
+	global foundWords
+	global .buttons.e.e.text	
+	global gameBeingPlayed
+	if {!($gameBeingPlayed)} {return}
+
+	set t [string tolower ${.buttons.e.e.text}]
+	if {[lsearch -exact $goodWordList $t]==-1} {
+		# didn't find it
+		if {[string length $t]<3} {
+			set r [myrandom 5]
+			switch $r {
+				0  {set m "How about a four letter word?"}
+				1  {set m "Yes, yes, of course..."}
+				2  {set m "whoops!"}
+				3  {set m "Try #$*%!, or $*#()!"}
+				4  {set m "Dang, another SMART-people game!"}
+			}
+			tk_dialog .addWordToList "Not 3 letters!" "Sorry, even if \"$t\"\
+					is a word, it's too\
+					short to count. This program only deals with 3 or more\
+					letter words." error 0 $m
+		} else {
+			set r [myrandom 5]
+			switch $r {
+				0  { set m "Dang, I feel foolish!"}
+				1  { set m "Stupid %$*# dictionary!"}
+				2  { set m "Yes, yes, of course..."}
+				3  { set m "Oh, you mean ENGLISH words?"}
+				4  { set m "Spell, Schmell..."}
+			}
+			tk_dialog .addWordToList "Not a Word!" "Sorry, \"$t\" is not in\
+					the dictionary" \
+					error 0 $m
+		}
+		return
+	} else { 
+		# found it!
+		if {[lsearch -exact $foundWords $t]!=-1} {
+			set r [myrandom 5]
+			switch $r {
+				0 { set m "Getting technical on me, eh?" }
+				1 { set m "Who me, cheat!?" }
+				2 { set m "Yeah, but this time it's with EMPHASIS!" }
+				3 { set m "But it was a REALLY hard one!" }
+				4 { set m "^%$@# #@%^!" }
+			}
+			tk_dialog .addWordToList "Already got it!" "Sorry, \"$t\" has already been  entered" error 0 $m
+			return
+		} else {
+			lappend foundWords $t
+			incr totalFound
+			displayWords $foundWords
+			if {[llength $foundWords]==[llength $goodWordList]} {
+				tk_dialog .addWordToList "100%!" "Excellent job! You got them all!" warning 0 "dude!"
+				quitGame 0
+			}
+		}
+	}
+}
+
+proc quitDialog {} {
+	set r [myrandom 5] 
+	switch $r {
+		0 { set m "Run away!! Run away!!" }
+		1 { set m "Made you feel stupid?" }
+		2 { set m "Good job mate. Now how about supporting shareware?"}
+		3 { set m "It won't hurt you to leave it open! (unless you're running Windoze, i.e.)"}
+		4 { set m "Addicted yet?"}
+	}
+	set z [tk_dialog .quitDialog "Really Quit?" $m question 1 Quit Cancel]
+	if {$z==0} { aboutDialog; exit 0}
+}
+
+proc dictionaryError {} {
+	tk_dialog .dictionaryError "error" "Could not find a dictionary in any of the standard places.  \nSet the DICTIONARY environment variable and run again." error 0 Quit
+	exit 1
+}
+
+proc aboutDialog {} {
+	tk_dialog .aboutDialog "about..." "Bogged for Linux.
+			\n\nThis is shareware/freeware, your choice.\
+			\n\nIf you like this program, and would like to see more like it,\
+			please consider sending \$10-\$20 to:\
+			\n\nBogged Rules!\n5230 North Foothills Drive\nTucson, Arizona\
+			85718\
+			\n(email:trudick@hotmail.com)" info 0 Cheers!
+}
+
+proc quitGame {{ask 1}} {
+	global goodWordList 
+	global foundWords
+	global gameBeingPlayed
+	if {$ask} {
+		set s [tk_dialog .quitGameDialog "Quit?" "Really give up?"\
+				warning 0 "Show me the answers!" Cancel]
+		if {$s==1} { return }
+	}
+	.control.quit configure -state disabled
+	
+	foreach word $foundWords {
+		set i [lsearch -exact $goodWordList $word]
+		if {$i==-1} {
+			.control.quit configure -state normal
+			error "Internal error. Found word \"$word\"not on wordlist."
+			return
+		}
+		set goodWordList [lreplace $goodWordList $i $i "${word}-"]
+	}
+	displayWords $goodWordList
+
+	set gameBeingPlayed 0
+
+	.control.new configure -state normal
+}
+
+proc startGame {} {
+	global goodWordList
+	global gameBeingPlayed
+	global totalWords
+
+	.control.new configure -state disabled
+
+	randomizeButtons
+	set goodWordList [listFilterWords]
+	while {[llength $goodWordList]==0} {
+		set s [tk_dialog .startGameDialog "wordless!" "No words were found.\
+				If you get\
+				this message continually, it may\
+				represent a problem with your dictionary file, or\
+				you may not have \"zcat\" or \"grep\" in your path"\
+				warning 0 "Jumble the Letters and Try Again" "Quit"]
+		if {$s==1} {
+			exit 1
+		} else {
+			randomizeButtons
+			set goodWordList [listFilterWords]
+		}
+	}
+	set gameBeingPlayed 1
+	incr totalWords [llength $goodWordList]
+	.control.quit configure -state normal
+}
+
+set dictionaryPaths {/usr/dict/english /usr/dict/english.gz\
+		/usr/dict/dictionary \
+		/usr/dict/dictionary.gz \
+		/usr/dict/words /usr/dict/words.gz /usr/dict/* /etc/english\
+		/etc/english.gz /etc/dictionary \
+		/etc/dictionary.gz /etc/words /etc/words.gz /usr/share/dict/english\
+		/usr/share/dict/english.gz \
+		/usr/share/dict/dictionary /usr/share/dict/dictionary.gz\
+		/usr/share/dict/words \
+		/usr/share/dict/words.gz /usr/share/dict/*}
+
+if {([info exists env])&&([info exists env(DICTIONARY)])&&\
+		($env(DICTIONARY)!="")} {
+	set dictionaryPaths $env(DICTIONARY)
+}
+if {[catch {set dictionaryFiles [lindex [eval glob $dictionaryPaths] 0]}]} {
+	dictionaryError
+	exit 1
+}
+
+proc helpDialog {} {
+	set helpText "\
+			\nThis is bogged, a word puzzle game.					  \
+		  \n\n  First, press the \"Start\" button to begin a game.\
+		  \n\n  The object of the game is to make words out of the\
+			\njumble of letters (presented here as buttons). Words\
+			\nmay start with any button and continue by moving on\
+			\nto adjacent letters, where \"adjacent\" is defined as\
+			\nbeing directly to the top, left, right, bottom, or\
+			\ntoward any of the four diagnols.\
+		  \n\n  Bogged searches for words itself, using your system\
+			\ndictionary as a reference. The object of the game is\
+			\nto find as many of these \"correct\" words as you can.\
+			\nAll of the \"correct\" words will be displayed when\
+			\nyou give up, which you can do at any time by pressing\
+			\nthe \"Give Up\" button.
+		  \n\n  Bogged represents many hours of work--please see the\
+			\n\"about\" dialog for details on how you can contribute\
+			\nto the cause of games on alternative O/Ss.\
+		  \n\nEnjoy,\
+			\n  Todd David Rudick\
+			\n  trudick@hotmail.com\n"
+	if {[catch {exec xless << $helpText &}]} {
+		tk_dialog .addWordToList "help" $helpText info 0 Ok		
+	}
+}
+
+trace variable foundWords w updateFoundMaxWords
+trace variable maxWords w updateFoundMaxWords
+trace variable totalFound w updateAverage
+trace variable totalWords w updateAverage
+updateFoundMaxWords
+updateAverage
+
+

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Public domain (C) 2001 Martin Macok <martin.macok@underground.cz>
+. /home/jgilmore/bin/ifile.settings
+
+if [ "$#" -lt "2" -o "x$1" == "x--help" ] ; then
+	echo "Usage: $0 category mailbox [mailbox2 ...] "
+	echo "Learns statistics about mailboxes and store it in category"
+	exit 1
+fi
+
+CAT="$1"
+testcat $CAT
+
+shift 1
+
+for MBOX in "$@" ; do
+	DEBUG "learning mailbox $MBOX into category $CAT"
+	formail -s ifile $IFILEOPTS -i "$CAT" <"$MBOX" >/dev/null 2>&1
+done

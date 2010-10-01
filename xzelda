@@ -1,0 +1,2 @@
+#/usr/bin/bash
+xgnuboy --source /home/jgilmore/gnuboy-1.0.1/gnuboy.rc ~/gnuboy-1.0.1/Zelda-Oo\ S.gbc &

@@ -1,0 +1,3 @@
+#!/bin/bash
+pilot-xfer -p /dev/ttyS1 -l | grep '\.txt' >>~/.jpilot/exclude.txt
+# pilot-xfer -p /dev/ttyS1 -I -e ~/.jpilot/exclude.txt -b ~/.jpilot

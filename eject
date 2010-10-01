@@ -1,0 +1,6 @@
+#!/bin/bash
+if []; then
+	/usr/bin/eject /media/cdrom
+else
+	/usr/bin/eject "$*"
+fi

@@ -1,0 +1,11 @@
+#!/bin/bash
+sudo odccm -f &
+synce-sync-engine &
+sleep 2
+msynctool --sync synce-sync
+
+sleep 2
+#sudo is needed, because odccm was started with sudo.
+#the `jobs -p` will return only process ID's.
+kill %2
+sudo kill `jobs -p`

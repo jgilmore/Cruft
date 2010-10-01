@@ -1,0 +1,38 @@
+#!/usr/bin/perl
+#use strict;
+#use warnings;
+use Fcntl;
+use lisplib;
+use Term::ReadLine;
+my ($WRLISP,$RDLISP);
+my ($rin);
+
+my ($term);
+$term = new Term::ReadLine 'lisp';
+print 'using readline package:'.$term->ReadLine."\n";
+
+while(1)
+{
+	my($ready,$buf);
+	sysopen($RDLISP,$outfifoname,O_RDONLY|O_NONBLOCK) || die "couln't open outfifo:$!\n";
+	$rin="";
+	vec($rin,fileno($RDLISP),1) = 1;
+	select($ready=$rin,undef,undef,0.20);
+	if(vec($ready,fileno($RDLISP),1) == 1){
+		if( sysread($RDLISP,$buf,8192) == 0){
+			sysopen($RDLISP,$infifoname,O_RDONLY|O_NONBLOCK) || die "couln't open outfifo:$!\n";
+			sysread($RDLISP,$buf,8192);
+		}
+		#print "lisp:$buf\n";
+		print $buf;
+	}
+	else{
+		$buf=$term->readline(">");
+		#print "Read:$buf\n";
+		exit(0) if $buf =~ /quit/;
+		sysopen($WRLISP,$infifoname,O_WRONLY);
+		syswrite($WRLISP,$buf);
+		syswrite($WRLISP,"\n");
+		close($WRLISP);
+	}
+}

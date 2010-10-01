@@ -1,0 +1,24 @@
+#!/bin/bash
+test -n "$1" && export USER=$1
+nd=/usr/games/lib/nethackdir/save
+ld=~/.nethack
+sd=~/.nethack/save
+sn=$UID$USER.gz
+case $0 in
+	*nr)
+		test -s $ld/$sn && cp -f $ld/$sn $nd 
+		exit $?
+		;;
+	*nrr)
+		test -s $sd/$sn && cp -f $sd/$sn $nd 
+		exit $?
+		;;
+	*ns)
+		test -s $nd/$sn && test -s $ld/$sn && cp -f $ld/$sn $sd 
+		test -s $nd/$sn && cp -f $nd/$sn $ld 
+		exit $?
+		;;
+	*nh)
+		ns $1 || nr $1
+		nethack
+esac

@@ -1,0 +1,12 @@
+#!/bin/bash
+for th in "$@"; do
+	# test for zip, rar, etc.
+	if [ ! "$th" = "${th%.zip}" ]; then
+		unzip "$th"
+	fi
+	if [ ! "$th" = "${th%.rar}" ]; then
+		rar x "$th"
+	fi
+
+	htmltotext.pl < "$th" >"${th}.txt" 2>/dev/null && makeztxt "${th}.txt" >/dev/null && rm -f "${th}.txt" &
+done

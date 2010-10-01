@@ -1,0 +1,2 @@
+#!/bin/bash
+rm /home/jgilmore/.mozilla/jgilmore/aimsc6kc.slt/lock -f

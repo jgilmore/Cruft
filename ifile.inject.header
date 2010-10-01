@@ -1,0 +1,16 @@
+#!/bin/bash
+# Public domain (C) 2001 Martin Macok <martin.macok@underground.cz>
+. /home/jgilmore/bin/ifile.settings
+if [ "$#" != "0" -o "x$1" == "x--help" ] ; then
+	echo "Usage: $0 "
+	echo "Injects ifile's hint header into mail. " \
+	     "Message expected on stdin, result goes to stdout."
+	exit 1
+fi
+ifiletemp
+
+HINT=$(tee "$FMSG" | /home/jgilmore/bin/ifile.test.message)
+
+
+formail -i "X-Ifile-Hint: $HINT" <"$FMSG"
+

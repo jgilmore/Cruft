@@ -1,0 +1,3 @@
+#!/bin/bash
+cp ~/.idata ~/.idata.backup 2>/dev/null
+ifile -r

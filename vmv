@@ -1,0 +1,22 @@
+#!/bin/bash
+# bash script to run the vmv.vim script usefully.
+
+VMVSCRIPT=/home/jgilmore/.vim/vmv.vim
+
+if [ "$1" != "" ];then
+	# If a parameter is passed, we'll assume it's a file which
+	# is a list of files, edit those names both in the file and on disk.
+	vim "$1" -S $VMVSCRIPT
+elif stty >/dev/null; then
+	# If stdin is NOT a tty, you must want to rename files in the current
+	# directory.
+	echo "nada"
+	ls | vim - -S $VMVSCRIPT
+else
+	# If standard input is a pipe, you probably did some variant of 
+	# find | grep -i ".mp3" | vmv
+	# and we should edit the names of the files listed on stdin.
+	echo "pipe"
+	vim - -S $VMVSCRIPT
+fi
+

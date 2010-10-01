@@ -1,0 +1,273 @@
+#! /bin/sh
+
+# start or stop laptop_mode, best run by a power management daemon when
+# ac gets connected/disconnected from a laptop
+#
+# install as /sbin/laptop_mode
+#
+# Contributors to this script:   Kiko Piris
+#				 Bart Samwel
+#				 Micha Feigin
+#				 Andrew Morton
+#				 Dax Kelson
+#
+# Original Linux 2.4 version by: Jens Axboe
+
+# Remove an option (the first parameter) of the form option=<number> from
+# a mount options string (the rest of the parameters).
+parse_mount_opts () {
+	OPT="$1"
+	shift
+	echo "$*"			| \
+	sed 's/.*/,&,/'			| \
+	sed 's/,'"$OPT"'=[0-9]*,/,/g'	| \
+	sed 's/,,*/,/g'			| \
+	sed 's/^,//'			| \
+	sed 's/,$//'			| \
+	cat -
+}
+
+# Remove an option (the first parameter) without any arguments from
+# a mount option string (the rest of the parameters).
+parse_nonumber_mount_opts () {
+	OPT="$1"
+	shift
+	echo "$*" 			| \
+	sed 's/.*/,&,/'			| \
+	sed 's/,'"$OPT"',/,/g'		| \
+	sed 's/,,*/,/g'			| \
+	sed 's/^,//'			| \
+	sed 's/,$//'			| \
+	cat -
+}
+
+# Find out the state of a yes/no option (e.g. "atime"/"noatime") in
+# fstab for a given filesystem, and use this state to replace the
+# value of the option in another mount options string. The device
+# is the first argument, the option name the second, and the default
+# value the third. The remainder is the mount options string.
+#
+# Example:
+# parse_yesno_opts_wfstab /dev/hda1 atime atime defaults,noatime
+#
+# If fstab contains, say, "rw" for this filesystem, then the result
+# will be "defaults,atime".
+parse_yesno_opts_wfstab () {
+	L_DEV=$1
+	shift
+	OPT=$1
+	shift
+	DEF_OPT=$1
+	shift
+	L_OPTS="$*"
+	PARSEDOPTS1="$(parse_nonumber_mount_opts $OPT $L_OPTS)"
+	PARSEDOPTS1="$(parse_nonumber_mount_opts no$OPT $PARSEDOPTS1)"
+	# Watch for a default atime in fstab
+	FSTAB_OPTS="$(cat /etc/fstab | sed 's/  / /g' | grep ^\ *"$L_DEV " | awk '{ print $4 }')"
+	if [ -z "$(echo "$FSTAB_OPTS" | grep "$OPT")" ] ; then
+		# option not specified in fstab -- choose the default.
+		echo "$PARSEDOPTS1,$DEF_OPT"
+	else
+		# option specified in fstab: extract the value and use it
+		if [ -z "$(echo "$FSTAB_OPTS" | grep "no$OPT")" ] ; then
+			# no$OPT not found -- so we must have $OPT.
+			echo "$PARSEDOPTS1,$OPT"
+		else
+			echo "$PARSEDOPTS1,no$OPT"
+		fi
+	fi
+}
+
+# Find out the state of a numbered option (e.g. "commit=NNN") in
+# fstab for a given filesystem, and use this state to replace the
+# value of the option in another mount options string. The device
+# is the first argument, and the option name the second. The
+# remainder is the mount options string in which the replacement
+# must be done.
+#
+# Example:
+# parse_mount_opts_wfstab /dev/hda1 commit defaults,commit=7
+#
+# If fstab contains, say, "commit=3,rw" for this filesystem, then the
+# result will be "rw,commit=3".
+parse_mount_opts_wfstab () {
+	L_DEV=$1
+	shift
+	OPT=$1
+	shift
+	L_OPTS="$*"
+
+	PARSEDOPTS1="$(parse_mount_opts $OPT $L_OPTS)"
+	# Watch for a default commit in fstab
+	FSTAB_OPTS="$(cat /etc/fstab | sed 's/	/ /g' | grep ^\ *"$L_DEV " | awk '{ print $4 }')"
+	if [ -z "$(echo "$FSTAB_OPTS" | grep "$OPT=")" ] ; then
+		# option not specified in fstab: set it to 0
+		echo "$PARSEDOPTS1,$OPT=0"
+	else
+		# option specified in fstab: extract the value, and use it
+		echo -n "$PARSEDOPTS1,$OPT="
+		echo "$FSTAB_OPTS"	| \
+		sed 's/.*/,&,/'		| \
+		sed 's/.*,'"$OPT"'=//'	| \
+		sed 's/,.*//'		| \
+		cat -
+	fi
+}
+
+KLEVEL="$(uname -r | cut -c1-3)"
+case "$KLEVEL" in
+	"2.4"|"2.6")
+		true
+		;;
+	*)
+		echo "Unhandled kernel version: $KLEVEL ('uname -r' = '$(uname -r)')"
+		exit 1
+		;;
+esac
+
+# Shall we remount journaled fs. with appropiate commit interval? (1=yes)
+DO_REMOUNTS=1
+
+# age time, in seconds. should be put into a sysconfig file
+MAX_AGE=1800
+
+# Dirty synchronous ratio.  At this percentage of dirty pages the process which
+# calls write() does its own writeback
+DIRTY_RATIO=40
+
+#
+# Allowed dirty background ratio, in percent.  Once DIRTY_RATIO has been
+# exceeded, the kernel will wake pdflush which will then reduce the amount
+# of dirty memory to dirty_background_ratio.  Set this nice and low, so once
+# some writeout has commenced, we do a lot of it.
+#
+DIRTY_BACKGROUND_RATIO=5
+
+READAHEAD=8192		# kilobytes
+
+# kernel default dirty buffer age
+DEF_AGE=30
+DEF_UPDATE=5
+DEF_DIRTY_BACKGROUND_RATIO=10
+DEF_DIRTY_RATIO=40
+DEF_XFS_AGE_BUFFER=15
+DEF_XFS_SYNC_INTERVAL=30
+
+# This must be adjusted manually to the value of HZ in the running kernel,
+# until the XFS people change their external interfaces to work in centisecs
+# like the rest of the external world. Unfortunately this cannot be automated. :(
+XFS_HZ=1000
+
+if [ ! -e /proc/sys/vm/laptop_mode ]; then
+	echo "Kernel is not patched with laptop_mode patch."
+	exit 1
+fi
+
+if [ ! -w /proc/sys/vm/laptop_mode ]; then
+	echo "You do not have enough privileges to enable laptop_mode."
+	exit 1
+fi
+
+case "$1" in
+	start)
+		AGE=$((100*$MAX_AGE))
+		XFS_AGE=$(($XFS_HZ*$MAX_AGE))
+		echo -n "Starting laptop_mode"
+
+		if [ -d /proc/sys/vm/pagebuf ] ; then
+			# This only needs to be set, not reset -- it is only used when
+			# laptop mode is enabled.
+			echo $XFS_AGE > /proc/sys/vm/pagebuf/lm_flush_age
+			echo $XFS_AGE > /proc/sys/fs/xfs/lm_sync_interval
+		elif [ -f /proc/sys/fs/xfs/lm_age_buffer ] ; then
+			# The same goes for these.
+			echo $XFS_AGE > /proc/sys/fs/xfs/lm_age_buffer
+			echo $XFS_AGE > /proc/sys/fs/xfs/lm_sync_interval
+		elif [ -f /proc/sys/fs/xfs/age_buffer ] ; then
+			# But not for these -- they are also used in normal
+			# operation.
+			echo $XFS_AGE > /proc/sys/fs/xfs/age_buffer
+			echo $XFS_AGE > /proc/sys/fs/xfs/sync_interval
+		fi
+
+		case "$KLEVEL" in
+			"2.4")
+				echo "1"				> /proc/sys/vm/laptop_mode
+				echo "30 500 0 0 $AGE $AGE 60 20 0"	> /proc/sys/vm/bdflush
+				;;
+			"2.6")
+				echo "5"				> /proc/sys/vm/laptop_mode
+				echo "$AGE"				> /proc/sys/vm/dirty_writeback_centisecs
+				echo "$AGE"				> /proc/sys/vm/dirty_expire_centisecs
+				echo "$DIRTY_RATIO"			> /proc/sys/vm/dirty_ratio
+				echo "$DIRTY_BACKGROUND_RATIO"		> /proc/sys/vm/dirty_background_ratio
+				;;
+		esac
+		if [ $DO_REMOUNTS -eq 1 ]; then
+			cat /etc/mtab | while read DEV MP FST OPTS DUMP PASS ; do
+				PARSEDOPTS="$(parse_mount_opts "$OPTS")"
+				case "$FST" in
+					"ext3"|"reiserfs")
+						PARSEDOPTS="$(parse_mount_opts commit "$OPTS")"
+						mount $DEV -t $FST $MP -o remount,$PARSEDOPTS,commit=$MAX_AGE,noatime
+						;;
+					"xfs")
+						mount $DEV -t $FST $MP -o remount,$OPTS,noatime
+						;;
+				esac
+				if [ -b $DEV ] ; then
+					blockdev --setra $(($READAHEAD * 2)) $DEV
+				fi
+			done
+		fi
+		echo "."
+		;;
+	stop)
+		U_AGE=$((100*$DEF_UPDATE))
+		B_AGE=$((100*$DEF_AGE))
+		echo -n "Stopping laptop_mode"
+		echo "0" > /proc/sys/vm/laptop_mode
+		if [ -f /proc/sys/fs/xfs/age_buffer ] && [ ! -f /proc/sys/fs/xfs/lm_age_buffer ] ; then
+			# These need to be restored though, if there are no lm_*.
+			echo "$(($XFS_HZ*$DEF_XFS_AGE_BUFFER))" 	> /proc/sys/fs/xfs/age_buffer
+			echo "$(($XFS_HZ*$DEF_XFS_SYNC_INTERVAL))" 	> /proc/sys/fs/xfs/sync_interval
+		fi
+		case "$KLEVEL" in
+			"2.4")
+				echo "30 500 0 0 $U_AGE $B_AGE 60 20 0"	> /proc/sys/vm/bdflush
+				;;
+			"2.6")
+				echo "$U_AGE"				> /proc/sys/vm/dirty_writeback_centisecs
+				echo "$B_AGE"				> /proc/sys/vm/dirty_expire_centisecs
+				echo "$DEF_DIRTY_RATIO"			> /proc/sys/vm/dirty_ratio
+				echo "$DEF_DIRTY_BACKGROUND_RATIO"	> /proc/sys/vm/dirty_background_ratio
+				;;
+		esac
+		if [ $DO_REMOUNTS -eq 1 ]; then
+			cat /etc/mtab | while read DEV MP FST OPTS DUMP PASS ; do
+				# Reset commit and atime options to defaults.
+				case "$FST" in
+					"ext3"|"reiserfs")
+						PARSEDOPTS="$(parse_mount_opts_wfstab $DEV commit $OPTS)"
+						PARSEDOPTS="$(parse_yesno_opts_wfstab $DEV atime atime $PARSEDOPTS)"
+						mount $DEV -t $FST $MP -o remount,$PARSEDOPTS
+						;;
+					"xfs")
+						PARSEDOPTS="$(parse_yesno_opts_wfstab $DEV atime atime $OPTS)"
+						mount $DEV -t $FST $MP -o remount,$PARSEDOPTS
+						;;
+				esac
+				if [ -b $DEV ] ; then
+					blockdev --setra 256 $DEV
+				fi
+			done
+		fi
+		echo "."
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		;;
+
+esac
+
+exit 0

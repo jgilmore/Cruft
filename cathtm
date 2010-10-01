@@ -1,0 +1,46 @@
+#!/bin/bash -vx
+pushd .
+if [ ! -s "$1" ]; then
+	echo "$1 does not exist, or is empty."
+	echo "Usage: cathtm 0937912034.htm"
+	echo "	cathtm Warp_speed.htm"
+	echo "	Deletes all files starting with the isbn specified."
+	echo "  Creates a .txt, .zip, and a .pdb suitable for weasel reader."
+	echo "  Both the .zip, the .pdb, and the .txt have the"
+	echo "    form 'author-title.*'"
+	exit
+fi
+basename=${1##*/}
+filename=$basename
+pathname=${1%$basename}
+if [ -n "$pathname" ]; then cd $pathname; fi
+
+title=`htmltotitle.pl $basename`
+basename=`htmltoisbn.pl $basename`
+if [ -z "$basename" ]; then
+	basename=${1%%.*}
+fi
+[ -z "$2" ] || basename=$2
+if [ -z "$title" ]; then
+	pwd
+	echo "Couldn't determine books' title."
+	exit
+fi
+echo title=$title
+echo basename=$basename
+
+
+for th in ${basename}___*.htm;do
+	mv   "$th" ${basename}__0${th#${basename}___}
+done
+cat ${basename}__*.htm>${basename}W.htm
+for th in ${basename}__0*.htm;do
+	mv   "$th" ${basename}___${th#${basename}__0}
+done
+docfrac --from-html ${basename}W.htm --to-text "$title.txt"
+rm -f ${basename}W.htm
+makeztxt -a 2 -l "$title.txt"
+#zip -m -j "$title.zip" ${basename}* $filename
+#zip -j "$title.zip"  banner.htm control.htm order_btn.gif webLogo60.gif goldweb40.gif
+
+popd

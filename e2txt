@@ -1,0 +1,62 @@
+#!/bin/bash
+cd ~/cache/books
+
+function extract
+{
+    tmp='/tmp/extract'
+    [ ! -d $tmp ] && mkdir $tmp
+    rm $tmp/*
+    putit=`pwd`
+    src=`pwd`/$1
+    dst=`pwd`/$2
+    newname=${dst##*/}
+    newname=${newname%.pdb}
+    echo p=$putit, src=$src, newname=$newname, tmp=$tmp
+    cd $tmp
+    case "$src" in
+        *.rar|*.RAR)
+            # e is to extract files only (drop file paths)
+            # -o- is to skip files that already exist
+            rar e -o- "$src"
+            ;;
+        *.zip|*.ZIP)
+            # -j is to extract all files to current directory
+            # -n is to never overwrite existing files
+            unzip -j -n "$src"
+            ;;
+    esac
+    #Inital extraction is done, deal with files (concatanate if needed)
+    [ -e *.lit ] && clit -d *.lit $tmp/
+    [ -e *.RTF ] && mv *.RTF tmp.rtf
+    [ -e *.Rtf ] && mv *.Rtf tmp.rtf
+    [ -e *.rtf ] && unrtf *.rtf --text > rtf.txt
+    [ -e *.PDF ] && mv *.PDF tmp.pdf
+    [ -e *.pdf ] && ps2ascii *.pdf pdf.txt
+    #Next line depends heavily on the shell sorting this input files alphabetically.
+    #And the books "slides" or "chapters" being in lexical order to begin with, of course.
+    #cat *.html *.HTM *.HTML *.htm | html2text > html.txt
+    cat *.html *.HTM *.HTML *.htm | htmltotext.pl > html.txt
+    if [ ! -e "$newname.txt" ]; then
+        cat *.txt *.TXT > "$newname.txt"
+    else
+        #line has no effect if only newname.txt exists, 
+        #otherwise appends all other text files to it.
+        cat *.txt *.TXT >> "$newname.txt"
+    fi
+    /home/jgilmore/bin/makeztxt -a 2 -l "$newname.txt"
+    cd $putit
+    mv $tmp/*.pdb "$2"
+    rm -rf $tmp
+}
+
+
+for th in archive/*/*; do
+    newname=${th%.zip}
+    newname=${newname%.rar}
+    newname=${newname%.ZIP}
+    newname=${newname%.RAR}
+    newname=palm/${newname#*/}.pdb
+
+    [ ! -e "$newname" ] && echo $newname
+    [ ! -e "$newname" ] && extract "$th" "$newname"
+done

@@ -1,0 +1,33 @@
+#!/bin/bash
+# Public domain (C) 2001 Martin Macok <martin.macok@underground.cz>
+. /home/jgilmore/bin/ifile.settings
+
+if [ "$#" -lt "2" -o "x$1" == "x--help" ] ; then
+	echo "Usage: $0 category mailbox "
+	echo "Prints theoretical succes of ifile on mailbox."
+	exit 1
+fi
+ifiletemp
+
+CAT="$1"
+testcat "$CAT"
+
+shift 1
+
+for MBOX in "$@" ; do
+
+  #DEBUG "Testing mailbox $MBOX with category $CAT"
+  formail -s ifile.test.message <"$MBOX" >"$FMSG"
+  
+  SUCCESS=$(grep "^${CAT}$" <"$FMSG"|wc -l)/$(wc -l <"$FMSG")
+  SUCCESS=$(echo $SUCCESS|sed 's/\ //g')
+  
+  echo "${MBOX} (${CAT})" : "$SUCCESS" " ("$(echo "100 * $SUCCESS"|bc)"%)"
+  
+  #DEBUG "In detail:"
+  for CATS in $(sort -u <"$FMSG") ; do
+  	DEBUG "$CATS:" $(grep "$CATS" <"$FMSG"|wc -l)
+  done
+
+done
+

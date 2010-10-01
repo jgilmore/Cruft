@@ -1,0 +1,90 @@
+#!/bin/bash
+
+#lastbackup=`ls --time-style=full-iso -lahd /var/backup1/anna\@anna/home/anna/hourly.0 | cut -d ' ' -f 7`
+
+#!/bin/bash
+#
+# $Id:$
+#
+trap "[ -e /var/run/yarbu.pid ] && rm -f /var/run/yarbu.pid" EXIT HUP QUIT TERM
+
+# call as:
+# yarbu-special 24 hourly confdir
+
+
+# This script is responsible for running through the backups that are
+# scheduled.  The configuration files are assumed to live under
+# /etc/yarbu/conf If the suffix is not supplied then the suffix is set
+# to the extension of the script name # This script sets the suffix of
+# the backup to whatever the suffix of the name of this script is.  If
+# the script has no suffix, it uses the default ".adhoc" First
+# determine the suffix (after the last dot) of the name of this
+# script.
+DAYERROR=$1
+CONFDIR=$2
+#[ -z $CONFDIR ] && logger -t "yarbu:$$" "bad call to yarbu-special:$@" && exit
+
+## Log backup start and end
+logger  -t "yarbu:$$" "start scanning /etc/yarbu/$CONFDIR"
+
+## Shamelessly knicked from "run-parts", run through all directories
+## under /etc/yarbu/conf looking for directories containing .conf
+## files.
+if [ -f /etc/yarbu/$CONFDIR/default/default.conf ];then
+	. /etc/yarbu/$CONFDIR/default/default.conf
+fi
+		
+for i in /etc/yarbu/$CONFDIR/*[^~,]
+do
+	# Ignore if not a directory
+	[ ! -d "$i" ] && continue
+	[ `basename "$i"` = "default" ] && continue
+
+	## Now loop over conf files
+	for CONF in "$i"/*.conf
+	do
+		[ ! -e "$CONF" ] && continue
+		. $CONF
+		HOSTNAME=`hostname -s`
+		NEWSOURCE=`echo $SOURCE | sed "s/\://g;s/^.*@//"`
+		STATUS="$TARGET/$HOSTNAME/$NEWSOURCE/STATUS"
+		lastbackup=`tail -1 $STATUS | cut -d , -f 2 | cut -d - -f 1-3`
+		today=`date --iso-8601`
+		[ -z "$lastbackup" ] && seclast=0
+		[ -n "$lastbackup" ] && seclast=`date -d $lastbackup +%s `
+		sectoday=`date -d $today +%s `
+		secerror=$(( $DAYERROR * 24 * 60 * 60 + $seclast ))
+		if [ $sectoday -gt $secerror ]; then
+			logger  -t "yarbu-checkbackup:$$" "old backup! $SOURCE last backed up on $lastbackup"
+			echo "yarbu-checkbackup:$$" "old backup! $SOURCE last backed up on $lastbackup"
+			WARN=yes
+		fi
+
+#		$TARGET/$SOURCE
+
+	done
+done
+
+if [ -n "$WARN" ]; then
+	export DISPLAY=:0.0
+	#this requires to much knowledge of the environment....
+	#zenity --error --title="Error!!!! Warning!!!!" --text="Today is $today, but the last backup was done on $lastbackup" &
+		nohup /usr/X11R6/bin/xeyes >> /dev/null &
+		beep -f 440
+		beep -f 220
+		beep -f 440
+		beep -f 220
+		beep -f 440
+		beep -f 220
+		beep -f 440
+		beep -f 220
+		beep -f 440
+		beep -f 220
+		beep -f 440
+		beep -f 220
+		beep -f 440
+		beep -f 220
+fi
+logger  -t "yarbu:$$" "end scanning /etc/yarbu/$CONFDIR"
+
+# Return accumulated errors from instances of running yarbu-engine

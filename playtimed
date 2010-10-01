@@ -1,0 +1,55 @@
+#!/bin/bash
+# Default timer/count
+TIMER=15m
+NEWCOUNT=0
+
+# Increment the counter
+. ~/.playnext/playtimed
+COUNT=$(( $COUNT + 1 ))
+echo "COUNT=$COUNT" > ~/.playnext/playtimed
+echo new count is $COUNT
+
+while [ $# -gt 0 ]; do
+    case $1 in
+    -t)
+        TIMER=$2
+        echo timer set to $TIMER
+        shift
+    ;;
+    -c)
+        NEWCOUNT=$2
+        echo count was given as $NEWCOUNT
+        shift
+    ;;
+    # Unknown option, break
+    *)
+        break 2
+    ;;
+    esac
+    shift
+    echo shifted
+done
+
+if [ -z "$NEWCOUNT" -o "$COUNT" -ne "$NEWCOUNT" ]; then
+    echo Nice Try! Ask mom for permission!
+    echo count is $COUNT
+    exit 1
+fi
+
+#"$*"
+# Start a game process, and a timer process
+"$@" &
+sleep $TIMER &
+# wait for either process to quit
+function diediedie { kill %1;kill%2 ; }
+#function diediedie { echo diedciedie ; }
+trap diediedie SIGCHLD 
+wait %2
+# Give an audible warning
+playonce I hear the wind blow fingertips
+# Terminate both processes (we don't care which one quit)
+kill %1
+kill %2
+# Some game programs trap sigkill, so kill them the hard way.
+sleep 2
+kill -9 %1

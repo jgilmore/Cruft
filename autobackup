@@ -1,0 +1,49 @@
+#!/usr/bin/python
+
+import libgmail
+from cPickle import load, dump
+
+#Open for reading
+try:
+	from os.path import expanduser
+	f=open(expanduser("~/.gmailpasswd"),"r")
+except IOError, (errno, strerror):
+	if errno == 2:
+		print("""
+			Passwords credentials file was not found.
+			To create this file, type "python" and at the prompt enter:
+			from cPickle import dump
+			c=["username","password"]
+			f=open("~/.gmailpasswd","wb")
+			dump(c,f)
+			f.close()
+			<Ctrl-D>
+			replace the "~/" with the appropriate home directory for your system
+			""")
+	else:
+		print "Unhandled IO error type"
+		raise
+
+#Load the stored credentials.
+credentials=load(f)
+f.close()
+
+#debug
+print credentials
+exit(17)
+
+
+#login to gmail
+ga=libgmail.GmailAccount("j.arthur.gilmore","nDhiRp8w")
+ga.login()
+
+#compose our message
+msg=libgmail.GmailComposedMessage(
+	"j.arthur.gilmore@gmail.com",
+	"Automatic Safe Backup",
+	"non-empty body text is not required",
+	filenames=["/home/jgilmore/Safe.dat"])
+try:
+	ga.sendMessage(msg)
+except http404:
+	ga.sendMessage(msg)

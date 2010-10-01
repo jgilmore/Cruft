@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Use this for lexing options, which should be consistent across the board.
+IFILEOPTS="-w -s -k" 
+#IFILEOPTS="-h" 
+export PATH=/home/jgilmore/bin:/usr/local/bin:/usr/bin:/bin:/usr/X11R6/bin:/usr/games:/sbin:/usr/sbin
+
+#function DEBUG { echo "$@" ; }
+function DEBUG 
+{
+	echo "$@"
+}
+
+
+# Create a tempfile, and try to insure that it is removed
+# when this script terminates. Obviously, a SIGKILL will prevent this.
+# (even though we TRY to trap it...)
+function ifiletemp 
+{
+	FTMP=${TMPDIR:-/tmp}
+	FMSG=`/bin/mktemp $FTMP/ifile.tmp.XXXXXX`
+	[ -z "$FMSG" ] && echo "ERR: cannot create tmp file!" >&2 && exit 1
+	trap "rm -f $FMSG" 0 1 2 3 4 5 6 7 8  9 10 11 12 13 14 15
+}
+
+
+# Test the passed parameters for 'correctness' as category names.
+function testcat
+{
+	for th in $@; do
+		if ! expr "x${th}" : "x[-a-zA-Z0-9_@#]*$" >/dev/null ; then
+			echo "ERR: Illegal characters in category name:${th}." >&2
+			exit 1
+		fi
+	done
+}

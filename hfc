@@ -1,0 +1,4 @@
+#!/bin/bash
+modprobe -r hfc_usb
+modprobe -r usb_storage
+echo hfc system reset successful

@@ -1,0 +1,9 @@
+#!/bin/sh
+#!/bin/bash
+if [ -z "$1" ]; then
+ echo Usage: randpasswd [chars]
+ echo "	Chars number of characters in password"
+ dd if=/dev/random bs=6 count=1 2>/dev/null|uuencode -m /dev/stdout|tail -n 2|head -n 1
+else
+ dd if=/dev/random bs=$((($1+1)*3/4)) count=1 2>/dev/null|uuencode -m /dev/stdout|tail -n 2|head -n 1 | cut -c -$1
+fi

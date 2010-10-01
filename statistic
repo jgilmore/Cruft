@@ -1,0 +1,64 @@
+#!/usr/bin/perl -w
+use strict;
+use File::stat;
+use Time::localtime;
+
+# read a list of files from stdin
+# for each file,
+#   ignore it if it's not as regular file with a non-zero size
+#   ignore it if it older than --date param
+#   print the folder it's in
+#   grep for a line matching '^X-Ifile-Hint' and print it.
+
+my ($date) = shift;
+
+
+
+while(<>)
+{
+	chomp;
+	next unless $_;
+	next unless -f $_; #not a file (symlink or dir or...)
+	next unless -s $_; #not size (doesn't have a size - i.e. is empty)
+	my ($date2,$ifile,$file,$next,@ifile);
+	$file=$_;
+	my ($date) = ctime(stat($_)->mtime);
+	open(THIS,$_) || die "error on $_, $!\n";	
+	while(<THIS>)
+	{
+		next unless $_;
+		chomp;
+		$date2 = $_ if( $next and not defined $date2 and /;/);
+		$next = 0;
+		$next  = 1  if /^Received: /;
+		$ifile = $_ if /^X-Ifile-Hint: /;
+		last if defined $ifile;
+	}
+	close(THIS) || die "error on $_, $!\n";	
+	next unless defined $file and defined $ifile and defined $date2 and defined $date;
+	next unless $ifile =~ /%/;
+	$ifile =~ s/^X-Ifile-Hint: //;
+	$ifile =~ s/\[(.*),(.*)\]\(%\) (.*)/$1,$2,$3/;
+	@ifile=split(/,/,$ifile);
+
+	$date2 =~ s/^.*;//;
+
+	#Extract the (probable) filed folder name
+	#filename (in maildir) is xxx/foldername/cur/xxxx
+	$file =~ s".*/([^/]+)/cur/.*"$1";
+
+	#Percentages which are wrong are negative
+	#FIXME: should percentages which are wrong be multiplied, and maybe
+	#mupltiplied by more if they are doubly wrong?
+	$ifile[2] *= -1 unless $ifile[0] eq $file;
+
+	#massage the dates into year/month/day for sorting...
+#	print "$date MM $date2\n";
+	$date =~ s"...,? (...) (..) ..:..:.. (....).*"$3/$1/$2";
+	$date2 =~ s"..., (.?.) (...) (....).*"$3/$2/$1";
+#	print "$date MM $date2\n";
+
+	
+	print "\"$date\",\"$date2\",\"$file\",\"${ifile[0]}\",\"${ifile[1]}\",\"${ifile[2]}\"\n";
+	
+}

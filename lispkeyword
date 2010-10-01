@@ -1,0 +1,8 @@
+#!/bin/bash
+r=/home/jgilmore/public_html/CLISPHyperSpec/Body
+test -e $r/index.txt || grep -n 'NAME="[a-z-]*"' $r/* >$r/index.txt 
+test 0 != $? && echo "Can't create index" && exit 10
+f=`grep -i "\"$1\"" $r/index.txt | grep -o '^[^:]*'`
+test -z "$f" && echo "can't find that keyword" && exit 20
+
+for th in $f; do mozilla -remote "openurl(file://$th#$1,new-tab)"; done
