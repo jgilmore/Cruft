@@ -194,7 +194,7 @@ if [ "$FILELINES" -lt 60 ] ; then
 fi
 
 #Forever, play a random song.
-while mplayer -nojoystick -playlist ${FILE}.random ; do 
+while mplayer -vo null -nojoystick -playlist ${FILE}.random ; do 
     if [ "$FILELINES" -lt 60 ] ; then
         cat $FILE
     fi
