@@ -4,6 +4,10 @@ LIBRARY=~/Music
 CACHEDLIST=~/.cached_playlist.m3u
 FILE=~/.playlist
 MASTERHOST=herb
+#Pattern is the initial filter to assure that we get only sound files.
+#I know it's technically evil to use file extension to determine file
+#content, but I'll have to life with any security issues it causes, I guess.
+PATTERN='\.\(\(\(mp3\)\|\(ogg\)\)\|\(flv\)\)\|\(flac\)$'
 hostname=`cat /etc/hostname`
 if [ -e $FILE ]; then
 	rm $FILE
@@ -85,7 +89,7 @@ while [ $# -gt 0 ]; do
             LIBRARY=`pwd`/$LIBRARY
         fi
         #Note that the only restriction here is to ogg or mp3 - no excluding audiobooks
-        find -L "$LIBRARY" | grep -i '\.\(mp3\)\|\(ogg\)$' >> $FILE
+        find -L "$LIBRARY" | grep -i "$PATTERN" >> $FILE
         echo Adding files from directory "$LIBRARY"
         echo found `cat $FILE | wc -l` songs so far
     else
@@ -96,7 +100,6 @@ done
 
 # If the playlist isn't built yet, build it!
 if [ ! -e $FILE ]; then
-    PATTERN='\.\(mp3\)\|\(ogg\)$'
 	(
 		#insert http remote list checking here.
 		if [ $hostname != $MASTERHOST ]; then
@@ -126,7 +129,7 @@ if [ ! -e $FILE ]; then
     echo found `cat $FILE | wc -l` songs so far
 fi
 
-# Process through Keyword arguments
+# Process through Keyword arguments (note that PATTERN is reset)
 while [ $# -gt 0 ]; do
     # "and" is redundant, ignore it
     if [ "$1" = "and" ]; then
