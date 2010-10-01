@@ -104,15 +104,21 @@ if [ ! -e $FILE ]; then
 		#insert http remote list checking here.
 		if [ $hostname != $MASTERHOST ]; then
 			cd
-			if wget --tries=1 --timestamping --no-host http://$MASTERHOST/.master_playlist.m3u 2>/dev/null; then
+			#if wget --tries=1 --timestamping --no-host http://$MASTERHOST/.master_playlist.m3u 2>/dev/null; then
+			if wget --tries=1 --timestamping --no-host http://$MASTERHOST/.master_playlist.m3u ; then
 				if [ ! -e ~/.remote_playlist.m3u -o ~/.master_playlist.m3u -nt ~/.remote_playlist.m3u ]; then
 					#We got a new remote master list, update the local copy of remote lists.
 					#Strategy: create a copy of the local list modified to "look" like they would if
 					#retrieved from the remote machine. 
 					#Then, cat with the remote list, sort, and use "uniq -u" to discard duplicates. Done
-					cat "$CACHEDLIST" | sed "s'^$LIBRARY/'http://$MASTERHOST/'" > "~/.remote_playlist.m3u.temp"
+					echo new remote master or old local copy, regenerating 1>&2
+					cat "$CACHEDLIST" | sed "s'^$LIBRARY/'http://$MASTERHOST/'" >~/.remote_playlist.m3u.temp
 					cat ~/.master_playlist.m3u ~/.remote_playlist.m3u.temp | sort | uniq -u >~/.remote_playlist.m3u
+					#This file being removed is actually the LOCAL playlist, gussied up to look like
+					#the remote playlist, so duplicate songs will be removed.
 					rm ~/.remote_playlist.m3u.temp
+				else
+					echo local copy of remote list is already up-to-date 1>&2
 				fi
 				echo remote master is available, using local and remote lists. 1>&2
 				cat $CACHEDLIST ~/.remote_playlist.m3u 
