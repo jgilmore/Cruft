@@ -1,0 +1,12 @@
+#!/usr/bin/env python
+""" Only encodes lines starting with "http:" so as to leave local files unchanged """
+from urllib import quote
+import fileinput
+
+for line in fileinput.input():
+	line=line.rstrip()
+	if line[0:5] == "http:":
+		print line[0:5] + quote(line[5:])
+	else:
+		print line
+
