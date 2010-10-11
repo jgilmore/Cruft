@@ -201,6 +201,11 @@ fi
 if [ "$FILELINES" -lt 60 ] ; then
     cat $FILE
 fi
+if [ -x /usr/bin/audacious ] ; then
+	mv $FILE $FILE.m3u
+	audacious $FILE.m3u &
+	exit	
+fi
 
 #Forever, play a random song.
 while mplayer -vo null -nojoystick -playlist ${FILE}.random ; do 
