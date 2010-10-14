@@ -1,0 +1,8 @@
+#!/bin/bash
+
+#Super-crude serial talker. Hit Ctrl-D to exit.
+#If you hit Ctrl-C, you'll have to manually kill it with "killall cat" or similar. 
+#copied from a forum post by triffid hunter.
+#Written here so I'll remember it when I need it.
+#See http://forums.reprap.org/read.php?4,61654
+stty raw ignbrk 57600 < /dev/ttyUSB0 && ( cat <&3 & cat >&3; kill %%; ) 3<>/dev/ttyUSB0
