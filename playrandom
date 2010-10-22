@@ -203,7 +203,7 @@ if [ "$FILELINES" -lt 60 ] ; then
 fi
 if [ -x /usr/bin/audacious ] ; then
 	urlencode $FILE > $FILE.m3u
-	audacious --enqueue $FILE.m3u &
+	audacious --enqueue $FILE.m3u 
 	exit	
 fi
 
