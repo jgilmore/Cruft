@@ -29,8 +29,6 @@ credentials=load(f)
 f.close()
 
 #debug
-print credentials
-exit(17)
 
 
 #login to gmail
@@ -45,5 +43,7 @@ msg=libgmail.GmailComposedMessage(
 	filenames=["/home/jgilmore/Safe.dat"])
 try:
 	ga.sendMessage(msg)
+	print("Successful")
 except http404:
 	ga.sendMessage(msg)
+	print("Successful on first retry")
