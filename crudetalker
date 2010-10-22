@@ -1,8 +1,48 @@
 #!/bin/bash
 
+#default for fived_on_arduino
+BAUD=115200
+
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v)
+            echo Crude Talker version 1.1
+        ;; 
+		-b)
+			BAUD=$2
+			shift
+		;;
+        -*)
+            cat <<'EOF'
+usage: crudetalker [-v] [-b baud]
+    -v: version
+    -b baud: set baud rate
+
+"cat"s terminal to /dev/arduino at the spec'd baudrate (default 115200)
+Hit Ctrl-D to terminate
+If you hit Ctrl-C, you'll have to kill the "cat" processes manually.
+
+EOF
+        ;;
+        *)
+        break
+        ;;
+    esac
+    shift
+done
+
 #Super-crude serial talker. Hit Ctrl-D to exit.
 #If you hit Ctrl-C, you'll have to manually kill it with "killall cat" or similar. 
 #copied from a forum post by triffid hunter.
 #Written here so I'll remember it when I need it.
 #See http://forums.reprap.org/read.php?4,61654
-stty raw ignbrk 57600 < /dev/ttyUSB0 && ( cat <&3 & cat >&3; kill %%; ) 3<>/dev/ttyUSB0
+stty raw ignbrk hup 115200 < /dev/arduino && echo Baudrate set to $BAUD && ( cat <&3 & cat >&3; kill %%; ) 3<>/dev/arduino
+
+#Command to set fuse bits and install bootloader
+#Doesn't work ¿because fuses are unwriteable using serial programming?
+#avrdude -c Diecimila -P /dev/arduino -p m168 -U hfuse:w:0xDD:m -U lfuse:w:0xff:m -U efuse:w:0x00:m 
+#avrdude -c Diecimila -P /dev/arduino -p m168 -U flash:w:ATmega168BOOT.hex
+#avrdude -c Diecimila -P /dev/arduino -p m168 -U lock:w:0x0f:m
+
+
