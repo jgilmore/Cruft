@@ -1,0 +1,197 @@
+#!/usr/bin/python
+"""
+	I've gotten REALLY tired of not having a working "mail" command. Lots of scripts
+	depend on a command-line driven "mail" command to report errors. If localhost isn't
+	a mailserver, how do you implement this?
+
+	If you're me, you implement a command-line emulation of the bog-standard unix "mail"
+	command in python, connecting it to gmail's smtp server, and away you go. I'm sure 
+	there's a better way, but all my googling hasn't found it.
+
+	You must have a "~/.gmailpasswd" file. type "python" then "import mail" to get 
+	further instructions.
+"""
+import smtplib
+import os
+from cPickle import load
+import sys
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEBase import MIMEBase
+from email.MIMEText import MIMEText
+from email import Encoders
+
+try:
+	f=open(os.path.expanduser("~/.gmailpasswd"),"r")
+except IOError, (errno, strerror):
+	if errno == 2:
+		print("""
+			Passwords credentials file was not found.
+			To create this file, type "python" and at the prompt enter:
+			from cPickle import dump
+			c=["username","password"]
+			f=open("~/.gmailpasswd","wb")
+			dump(c,f)
+			f.close()
+			<Ctrl-D>
+			replace the "~/" with the appropriate home directory for your system
+			""")
+	else:
+		print "Unhandled IO error type"
+		raise
+
+#Load the stored credentials.
+credentials=load(f)
+f.close()
+
+gmail_user = credentials[0]
+gmail_pwd = credentials[1]
+
+
+def mail(to, subject, text, filelist=[],bcc="",cc="",headers=""):
+	""" send mail to somebody.
+		Uses gmail's smtp interface to actually send the email. 
+
+		"to" "bcc" and "cc" may be lists of addresses, or a single address as a string.
+
+		Note: all attached files are base64 encoded and stored IN MEMORY before being sent to
+		the server. You probably will not be able to send any file or set of files even close to as
+		large as your computers memory.
+
+		All attachements are given the mime-type "application/octet-stream" which is wrong.
+	"""
+	msg = MIMEMultipart()
+
+	msg['From'] = gmail_user
+	msg['Subject'] = subject
+	try:
+		test = to.lower()
+		#no error? to is a string, convert it to a list.
+		sendto=[to]
+		msg['To'] = to
+	except AttributeError:
+		#to is a list
+		sendto=[]
+		for addr in to:
+			sendto.append(addr)
+			msg.__setitem__('To',addr)
+
+	if cc:
+		msg['Cc'] = cc
+		try:
+			test = bcc.lower()
+			to.append(bcc)
+			msg.__setitem__('Cc',addr)
+		except AttributeError:
+			for addr in bcc:
+				sendto.append(addr)
+				msg.__setitem__('Cc',addr)
+	if bcc:
+		#The point of "bcc" is that it's not in the message header, only the smtp reciepients.
+		#msg['Bcc'] = bcc
+		try:
+			test = cc.lower()
+			to.append(cc)
+		except AttributeError:
+			for addr in bcc:
+				sendto.append(addr)
+	if headers:
+		try:
+			test = headers.lower()
+			#no error? headers is a string, convert it to a list.
+			headers=[headers]
+		except AttributeError:
+			#already a list
+			pass
+		for header in headers:
+			name, value = header.split(':',1)
+			msg.__setitem__(name,value)
+
+	msg.attach(MIMEText(text))
+
+	for attach in filelist:
+		part = MIMEBase('application', 'octet-stream')
+		#The "read" call reads and encodes all files INTO MEMORY!!!
+		# This severly limits the sendable file size.
+		#TODO: rewrite email and smtplib to accept pointers, so these things can be done on the fly,
+		#using MUCH less memory.
+		part.set_payload(open(attach, 'rb').read())
+		Encoders.encode_base64(part)
+		part.add_header('Content-Disposition',
+				  'attachment; filename="%s"' % os.path.basename(attach))
+		msg.attach(part)
+
+	mailServer = smtplib.SMTP("smtp.gmail.com", 587)
+	mailServer.ehlo()
+	mailServer.starttls()
+	mailServer.ehlo()
+	mailServer.login(gmail_user, gmail_pwd)
+	mailServer.sendmail(gmail_user, sendto, msg.as_string())
+	mailServer.close()
+
+def emulate_mail_command(argv):
+	'''\
+Emulates the "normal" unix "mail" command.
+mail [-eIinv] [-a header] [-b bcc-addr] [-c cc-addr] [-s subject] [-A|--attach filename ] to-addr [to-addr...] [-- sendmail-options [...]]
+	-v verbosely echo SMTP transaction.
+	-e Don't send empty emails
+	-A --attach attaches the named file, which must be readable.
+	-I -i -n ignored, accepted for compatibility reasons
+
+	The -a, -A, -b, -c, and -s options may be repeated multiple times.  Multiple subjects are concatanated in order.
+
+	headers specified with the -a option are ignored (there is currently no support for headers)
+
+	sendmail options are ignored, as we use only one smtp provider, and we already know how to talk to them.\
+	'''
+	import getopt
+	verbose = False
+	empty_emails = True
+	bcc = []
+	cc = []
+	headers = []
+	filelist = []
+	subject = ""
+	args=getopt.gnu_getopt(argv[1:],"?heIinvA:a:b:c:s:",["help","attach"])
+	for o, value in args[0]:
+		#ignore Iin, irrelevant to modern usage
+		if o == "-v":
+			verbose = True
+		elif o == "-e":
+			empty_emails = False
+		elif o == "-a":
+			headers.append(value)
+		elif o == "-A" or o == "--attach":
+			filelist.append(value)
+		elif o == "-b":
+			bcc.append(value)
+		elif o == "-c":
+			cc.append(value)
+		elif o == "-s":
+			subject += value
+		else: #if o == "-?" or o == "-h" or o == "--help" or o == ??:
+			print emulate_mail_command.__doc__
+			exit(0)
+			
+	try:
+		to_addr = args[1][args[1].index("--")]
+	except ValueError:
+		#ValueError means that "--" was not found. This is the normal condition.
+		#If it WAS found, it's not found anymore, as we just chopped of the sendmail options.
+		pass
+	#asdf
+	if len(args[1]) == 0:
+		print "Must have at least one address"
+		exit(1)
+	text=sys.stdin.read()
+	if len(text) == 0 and not empty_emails:
+		print "Cowardly refusing to send an empty message"
+		exit(2)
+
+	#Send the email, unless it's empty.
+	mail(args[1], subject, text, bcc=bcc, cc=cc, headers=headers, filelist=filelist)
+	#print args[1], subject, text, bcc, cc
+	
+if __name__ == "__main__":
+	emulate_mail_command(sys.argv)
+
+
