@@ -9,7 +9,7 @@ if [ "${0##*/}" = "j" ]; then
 	fi
 elif [ "${0##*/}" = "js" ]; then
 	vim "$FILE"
-	ispell "$FILE"
+	ispell -x "$FILE"
 else
 	echo "huh? I'm not called that?"
 fi

@@ -1,12 +1,16 @@
 #!/usr/bin/python
+import os
+import subprocess
+from cPickle import load
 
-import libgmail
-from cPickle import load, dump
+#Jump through a hoop to import my mail function.
+import sys
+sys.path.append("/home/jgilmore/bin")
+import mail
 
 #Open for reading
 try:
-	from os.path import expanduser
-	f=open(expanduser("~/.gmailpasswd"),"r")
+	f=open(os.path.expanduser("~/.gmailpasswd"),"r")
 except IOError, (errno, strerror):
 	if errno == 2:
 		print("""
@@ -28,22 +32,63 @@ except IOError, (errno, strerror):
 credentials=load(f)
 f.close()
 
-#debug
+#Time to beat:
+mytime=os.stat(os.path.expanduser("~/.gmailpasswd")).st_mtime
+
+# cycle through all documents in /doc, encrypt and email any which are newer
+# filestring = string list of files
+fileslist=[]
+bodystring=""
+filestring=""
+def checkNadd(filename):
+	""" Add a file to the file list. IF its newer """
+	global filestring
+	global fileslist
+	global bodystring
+	status   = os.stat(filename)
+	if status.st_mtime > mytime:
+		fileslist.append(filename)
+		filestring += filename + "\n"
+	#else:
+	#	print str(status.st_mtime) + "<" + str(mytime)
+	#For journal entries, add any "anna:" sections to the email body.
+	if os.path.basename(filename).startswith("Journal") and filename.endswith(".txt"):
+		f=open(filename,"r")
+		addme=False
+		for line in f:
+			if line.endswith(":"):
+				addme=False
+			if addme:
+				bodystring+=line
+			if line.lower().rstrip() == "anna:":
+				addme=True
+				bodystring+="From " + filename + "\n\n"
+		f.close()
 
 
-#login to gmail
-ga=libgmail.GmailAccount("j.arthur.gilmore","nDhiRp8w")
-ga.login()
+for root,dirs,files in os.walk(os.path.expanduser("~/docs")):
+	for file in files:
+		checkNadd(os.path.join(root,file))
 
-#compose our message
-msg=libgmail.GmailComposedMessage(
-	"j.arthur.gilmore@gmail.com",
-	"Automatic Safe Backup",
-	"non-empty body text is not required",
-	filenames=["/home/jgilmore/Safe.dat"])
-try:
-	ga.sendMessage(msg)
-	print("Successful")
-except http404:
-	ga.sendMessage(msg)
-	print("Successful on first retry")
+
+if len(fileslist) == 0:
+	exit(0)
+
+bodystring += "\n\n Changed files included in the backup:\n\n" + filestring
+
+fileslist.insert(0,"-P")
+fileslist.insert(0,"-c")
+fileslist.insert(0,"/bin/tar")
+#print fileslist
+#print fileslist
+#print filestring
+#print bodystring
+# This implements "tar -c --strip-components
+tar=subprocess.Popen(fileslist,stdout=subprocess.PIPE,bufsize=-1)
+f=open("/tmp/autobackup.tar.gpg","wb")
+gpg=subprocess.Popen(["/usr/bin/gpg","-r","j.arthur.gilmore@gmail.com","--encrypt"],stdout=f,stdin=tar.stdout,bufsize=-1)
+
+if gpg.wait() == 0 and tar.wait() == 0:
+	mail.mail("anna.gilmore@gmail.com","autobackup email",bodystring,filelist=["/tmp/autobackup.tar.gpg","/home/jgilmore/Safe.dat"])
+	os.utime(os.path.expanduser("~/.gmailpasswd"),None)
+

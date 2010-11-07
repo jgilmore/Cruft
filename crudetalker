@@ -37,7 +37,7 @@ done
 #copied from a forum post by triffid hunter.
 #Written here so I'll remember it when I need it.
 #See http://forums.reprap.org/read.php?4,61654
-stty raw ignbrk hup 115200 < /dev/arduino && echo Baudrate set to $BAUD && ( cat <&3 & cat >&3; kill %%; ) 3<>/dev/arduino
+stty raw ignbrk hup $BAUD < /dev/arduino && echo Baudrate set to $BAUD && ( tee log.txt <&3 | cat & cat >&3; kill %%; ) 3<>/dev/arduino
 
 #Command to set fuse bits and install bootloader
 #Doesn't work ¿because fuses are unwriteable using serial programming?
