@@ -1,0 +1,18 @@
+#!/bin/bash
+# Stupid script to clean of a camera's SD card (or whatever) for reuse.
+
+[ ! -d ~/pics -o ! -d "$1/dcim" ] && echo "missing either source or destination directory" && exit 1
+
+zenity --info --text "Camera-type thingie inserted, moving pictures etc to ~/pics" &
+for dir in $1dcim/*; do
+	for file in $dir/*; do 
+		
+		echo "$file" ~/pics
+	done
+done
+
+umount $1
+mplayer /usr/share/sounds/KDE_Beep_ClockChime.wav
+
+zenity --info --text "Done moving pictures, media is unmounted and you may remove it" &
+
