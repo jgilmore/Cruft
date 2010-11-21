@@ -1,16 +1,28 @@
 #!/bin/bash
 # Stupid script to clean of a camera's SD card (or whatever) for reuse.
+debug=
+if [ "$debug" != "" ] ;then
+	echo `whoami`>/tmp/camera
+fi
 
 [ ! -d ~/pics -o ! -d "$1/dcim" ] && echo "missing either source or destination directory" && exit 1
 
 zenity --info --text "Camera-type thingie inserted, moving pictures etc to ~/pics" &
-for dir in $1dcim/*; do
+for dir in $1/dcim/*; do
 	for file in $dir/*; do 
-		
-		echo "$file" ~/pics
+		if [ "$debug" != "" ];then
+			echo "$file" >>/tmp/camera
+		fi
+		mv "$file" ~/pics
+		# Clear extranious a+x permissions on coppied files - they're not really executable.
+		chmod a-x ~/pics/${file##*/}
 	done
 done
 
+if [ "$debug" != "" ] ;then
+	set >>/tmp/camera
+	mount >>/tmp/camera
+fi
 umount $1
 mplayer /usr/share/sounds/KDE_Beep_ClockChime.wav
 

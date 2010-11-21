@@ -40,33 +40,41 @@ mytime=os.stat(os.path.expanduser("~/.gmailpasswd")).st_mtime
 fileslist=[]
 bodystring=""
 filestring=""
+subject=""
 def checkNadd(filename):
 	""" Add a file to the file list. IF its newer """
 	global filestring
 	global fileslist
 	global bodystring
+	global subject
 	status   = os.stat(filename)
 	if status.st_mtime > mytime:
 		fileslist.append(filename)
 		filestring += filename + "\n"
+		#print filename
+		if os.path.basename(filename).startswith("Journal") and filename.endswith(".txt"):
+			f=open(filename,"r")
+			addme=False
+			for line in f:
+				if line.endswith(":"):
+					addme=False
+				if addme:
+					bodystring+=line
+				if line.lower().lstrip().startswith("anna:"):
+					addme=True
+					bodystring+="From " + filename + "\n\n"
+					name, sub=line.split(":",1)
+					if sub:
+						subject += sub.strip() + " "
+			f.close()
 	#else:
 	#	print str(status.st_mtime) + "<" + str(mytime)
 	#For journal entries, add any "anna:" sections to the email body.
-	if os.path.basename(filename).startswith("Journal") and filename.endswith(".txt"):
-		f=open(filename,"r")
-		addme=False
-		for line in f:
-			if line.endswith(":"):
-				addme=False
-			if addme:
-				bodystring+=line
-			if line.lower().rstrip() == "anna:":
-				addme=True
-				bodystring+="From " + filename + "\n\n"
-		f.close()
 
 
 for root,dirs,files in os.walk(os.path.expanduser("~/docs")):
+	#print root, dirs, files
+	files.sort()
 	for file in files:
 		checkNadd(os.path.join(root,file))
 
@@ -88,7 +96,11 @@ tar=subprocess.Popen(fileslist,stdout=subprocess.PIPE,bufsize=-1)
 f=open("/tmp/autobackup.tar.gpg","wb")
 gpg=subprocess.Popen(["/usr/bin/gpg","-r","j.arthur.gilmore@gmail.com","--encrypt"],stdout=f,stdin=tar.stdout,bufsize=-1)
 
+if subject == "":
+	subject="Autobackup Email"
+
 if gpg.wait() == 0 and tar.wait() == 0:
-	mail.mail("anna.gilmore@gmail.com","autobackup email",bodystring,filelist=["/tmp/autobackup.tar.gpg","/home/jgilmore/Safe.dat"])
-	os.utime(os.path.expanduser("~/.gmailpasswd"),None)
+	if mail.mail("anna.gilmore@gmail.com",subject,bodystring,filelist=["/tmp/autobackup.tar.gpg","/home/jgilmore/Safe.dat"]):
+		#	os.mtime(os.path.expanduser("~/.gmailpasswd"),None)
+		os.execv("/usr/bin/touch",("touch",os.path.expanduser("~/.gmailpasswd")))
 

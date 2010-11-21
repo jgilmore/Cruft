@@ -37,6 +37,10 @@ done
 #copied from a forum post by triffid hunter.
 #Written here so I'll remember it when I need it.
 #See http://forums.reprap.org/read.php?4,61654
+echo 'G21 (units are mm)'
+echo 'G91 (relative positioning)'
+
+echo Setting baudrate to $BAUD
 stty raw ignbrk hup $BAUD < /dev/arduino && echo Baudrate set to $BAUD && ( tee log.txt <&3 | cat & cat >&3; kill %%; ) 3<>/dev/arduino
 
 #Command to set fuse bits and install bootloader
