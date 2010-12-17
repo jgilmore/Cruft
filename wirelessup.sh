@@ -33,6 +33,9 @@ elif echo $networks | grep RVCSNet ; then
 elif echo $networks | grep "linksys_OW_25001" ; then
 	echo alex\'s house
 	sudo iwconfig wlan0 ESSID "linksys_OW_25001"
+elif echo $networks | grep "linksys" ; then
+	echo alex\'s house
+	sudo iwconfig wlan0 ESSID "linksys"
 else
 	echo no known networks found?
 	sudo iwconfig wlan0 ESSID any
