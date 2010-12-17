@@ -27,4 +27,5 @@ umount $1
 mplayer /usr/share/sounds/KDE_Beep_ClockChime.wav
 
 zenity --info --text "Done moving pictures, media is unmounted and you may remove it" &
+rsync -avub ~/pics herb:
 
