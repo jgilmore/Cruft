@@ -42,6 +42,7 @@ usage: playonce [-v] [-h|--help|-?] [directory...] [word...]
 usage: playmeonce [-v] [-h|--help|-?] [directory...] [word...]
     -v: version
     -h|--help|-?: print this help
+    -r: Regenerate local play lists
     [directory...]: names of directories to gather files from. If ommited,
         the "library" directory ($LIBRARY) will be used, and the keyword
         "not audiobooks" is assumed.
