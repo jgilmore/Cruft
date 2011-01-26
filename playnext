@@ -73,6 +73,8 @@ fi
 #Grab the $NEXT'th $NUMBER line(s) of the playlist
 echo "playing the $NEXT'th $NUMBER files"
 head "$NAME.playlist" -n $(( $NEXT + $NUMBER - 1 )) | tail -n $NUMBER >/tmp/playnext
+echo "this file is called:"
+cat /tmp/playnext	
 
 #And play that file(s)
 mplayer -fs -nojoystick -playlist /tmp/playnext
