@@ -4,12 +4,95 @@ import glob
 import subprocess
 from cPickle import load
 
-#Jump through a hoop to import my mail function.
-import sys
-sys.path.append("/home/jgilmore/bin")
-import mail
+
+
+def mail(From, to, subject, text, filelist=[],bcc="",cc="",headers=""):
+	from email.MIMEMultipart import MIMEMultipart
+	from email.MIMEBase import MIMEBase
+	from email.MIMEText import MIMEText
+	from email import Encoders
+	from email.generator import Generator
+	""" send mail to somebody. Return true on success, false on failure
+
+		"to" "bcc" and "cc" may be lists of addresses, or a single address as a string.
+
+		Note: all attached files are base64 encoded and stored IN MEMORY before being sent to
+		the server. You probably will not be able to send any file or set of files even close to as
+		large as your computers memory.
+
+		All attachements are given the mime-type "application/octet-stream" which is wrong.
+	"""
+	msg = MIMEMultipart()
+
+	msg['From'] = From
+	msg['Subject'] = subject
+	try:
+		test = to.lower()
+		#no error? to is a string, convert it to a list.
+		sendto=[to]
+		msg['To'] = to
+	except AttributeError:
+		#to is a list
+		sendto=[]
+		for addr in to:
+			sendto.append(addr)
+			msg.__setitem__('To',addr)
+
+	if cc:
+		msg['Cc'] = cc
+		try:
+			test = bcc.lower()
+			to.append(bcc)
+			msg.__setitem__('Cc',addr)
+		except AttributeError:
+			for addr in bcc:
+				sendto.append(addr)
+				msg.__setitem__('Cc',addr)
+	if bcc:
+		#The point of "bcc" is that it's not in the message header, only the smtp reciepients.
+		#msg['Bcc'] = bcc
+		try:
+			test = cc.lower()
+			to.append(cc)
+		except AttributeError:
+			for addr in bcc:
+				sendto.append(addr)
+	if headers:
+		try:
+			test = headers.lower()
+			#no error? headers is a string, convert it to a list.
+			headers=[headers]
+		except AttributeError:
+			#already a list
+			pass
+		for header in headers:
+			name, value = header.split(':',1)
+			msg.__setitem__(name,value)
+
+	msg.attach(MIMEText(text))
+
+	for attach in filelist:
+		part = MIMEBase('application', 'octet-stream')
+		#The "read" call reads and encodes all files INTO MEMORY!!!
+		# This severly limits the sendable file size.
+		#TODO: rewrite email and smtplib to accept pointers, so these things can be done on the fly,
+		#using MUCH less memory.
+		part.set_payload(open(attach, 'rb').read())
+		Encoders.encode_base64(part)
+		part.add_header('Content-Disposition',
+				  'attachment; filename="%s"' % os.path.basename(attach))
+		msg.attach(part)
+
+	sendmail=subprocess.Popen(["/usr/sbin/sendmail","-i"] + sendto,stdin=subprocess.PIPE,bufsize=-1)
+	t = Generator(sendmail.stdin,mangle_from_=False,maxheaderlen=0)
+	t.flatten(msg)
+	sendmail.stdin.close()
+	return sendmail.wait()
+
+
 
 #Open for reading
+
 try:
 	f=open(os.path.expanduser("~/.gmailpasswd"),"r")
 except IOError, (errno, strerror):
@@ -29,8 +112,7 @@ except IOError, (errno, strerror):
 		print "Unhandled IO error type"
 		raise
 
-#Load the stored credentials.
-credentials=load(f)
+#close the file - I really only needed to verify its existance.
 f.close()
 
 #Time to beat:
@@ -107,7 +189,7 @@ if subject == "":
 	subject="Autobackup Email"
 
 if gpg.wait() == 0 and tar.wait() == 0:
-	if mail.mail("anna.gilmore@gmail.com",subject,bodystring,filelist=["/tmp/autobackup.tar.gpg","/home/jgilmore/Safe.dat"]):
+	if not mail("j.arthur.gilmore@gmail.com","anna.gilmore@gmail.com",subject,bodystring,filelist=["/tmp/autobackup.tar.gpg","/home/jgilmore/Safe.dat"]):
 		#	os.mtime(os.path.expanduser("~/.gmailpasswd"),None)
 		os.execv("/usr/bin/touch",("touch",os.path.expanduser("~/.gmailpasswd")))
 
