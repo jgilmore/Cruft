@@ -16,5 +16,5 @@ if [ "$1" == "" ]; then
 else
 	# View yesterday's journal entry.
 	line=$(($1 + 1))
-	less "`find $HOME/docs/Journal | sort -r | head -n $line | tail -n 1`"
+	vim "`find $HOME/docs/Journal | sort -r | head -n $line | tail -n 1`"
 fi
