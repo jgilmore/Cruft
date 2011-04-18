@@ -18,6 +18,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         -v)
             echo Play Random V1.1
+			exit
+        ;; 
+        -m)
+			DISPLAY=""
         ;; 
 		-r)
 			echo Regenerating the cached local file list.
@@ -41,6 +45,7 @@ usage: playme [-v] [-h|--help|-?] [directory...] [word...]
 usage: playonce [-v] [-h|--help|-?] [directory...] [word...]
 usage: playmeonce [-v] [-h|--help|-?] [directory...] [word...]
     -v: version
+    -m: Use mplayer, instead of audacious. Even if audacious is available.
     -h|--help|-?: print this help
     -r: Regenerate local play lists
     [directory...]: names of directories to gather files from. If ommited,
@@ -184,18 +189,6 @@ else
     # file and remove it from the non-random file.
     echo Randomizing Playlist
     sort -R $FILE >$FILE.random
-#    LINELIST=`bash -c "echo {$FILELINES..1}"`
-#    rm ${FILE}.random
-#    for th in $LINELIST;do
-#        SONGNUM=$(( $RANDOM % $th + 1 ))
-#        SONG=`head -$SONGNUM $FILE | tail -1`
-#        echo "$SONG" >>${FILE}.random
-#        head -$(($SONGNUM - 1)) $FILE >> ${FILE}.temp
-#        tail -$(($th - $SONGNUM)) $FILE >>${FILE}.temp 
-#        rm $FILE
-#        mv ${FILE}.temp $FILE
-#        echo -ne $th "\r"
-#    done
 fi
     
 #Displaylist
@@ -203,9 +196,11 @@ if [ "$FILELINES" -lt 60 ] ; then
     cat $FILE
 fi
 if [ -x /usr/bin/audacious ] ; then
-	urlencode $FILE > $FILE.m3u
-	audacious --enqueue $FILE.m3u 
-	exit	
+	if [ "$DISPLAY" != "" ]; then
+		urlencode $FILE > $FILE.m3u
+		audacious --enqueue $FILE.m3u 
+		exit	
+	fi
 fi
 
 #Forever, play a random song.
