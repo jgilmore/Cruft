@@ -41,7 +41,18 @@ echo 'G21 (units are mm)'
 echo 'G91 (relative positioning)'
 
 echo Setting baudrate to $BAUD
+
+if ps | grep 'cat$' >/dev/null; then
+	skip_kill_cat=1
+fi
+echo "press ctrl+D to exit"
 stty raw ignbrk hup $BAUD < /dev/arduino && echo Baudrate set to $BAUD && ( tee log.txt <&3 | cat & cat >&3; kill %%; ) 3<>/dev/arduino
+# You're supposed to use "^D" to exit. If somebody uses "^C" instead,
+# it leaves the "cat" process connected between the terminal and /dev/arduino
+# detect this condition and kill that process.
+if [ "$skip_kill_cat" == "" ]; then
+	kill `ps | grep 'cat$'| cut -d " " -f -1` 2>/dev/null
+fi
 
 #Command to set fuse bits and install bootloader
 #Doesn't work ¿because fuses are unwriteable using serial programming?
