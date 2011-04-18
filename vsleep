@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# substitute for the traditional "sleep" command
+# This will print the time remaining on stdout, so if you have to interrupt it you can restart at approximately the same place.
+
+
+case "$1" in 
+	--help)
+		cat <<EOF
+Usage: sleep NUMBER[SUFFIX]
+Pause for NUMBER seconds. SUFFIX may be 'm' for minutes, 'h' for hours, 'd' for days, or 's' for seconds (the default)
+Giving more than one argument is an error. Giving no arguments is an error.
+	--help: print help and exit
+	--version: print version and exit
+EOF
+		exit
+	;;
+	--version)
+		echo "vsleep v.1 https://github.com/jgilmore/Cruft"
+		exit	
+esac
+
+if [ "$1" == "" -o "$2" != "" ]; then
+	echo "vsleep: too many or too few arguments" 1>&2
+	exit 255
+fi
+SUFFIX=${1#${1%?}}
+if [ "$SUFFIX" != "s" -a "$SUFFIX" != 'h' -a "$SUFFIX" != 'm' -a "$SUFFIX" != 'd' ]; then
+	SUFFIX='s'
+fi
+NUMBER=${1%%$SUFFIX}
+#echo n=$NUMBER
+#echo s=$SUFFIX
+
+#Test for a valid number
+if [ "$NUMBER" -ge 0 ] 2>/dev/null 
+then
+	echo number >/dev/null
+else
+	echo "vsleep: Not a number" 1>&2
+	exit 254
+fi
+
+while [ "$NUMBER" -gt "0" ]; do
+	echo -en $NUMBER "    \r"
+	sleep 1$SUFFIX
+	NUMBER=$(( $NUMBER - 1 ))
+done
+
+#Final echo puts the prompt on the next line, and properly shows "0" as the final number
+echo "0  "
