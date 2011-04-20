@@ -7,7 +7,7 @@ MASTERHOST=herb
 #Pattern is the initial filter to assure that we get only sound files.
 #I know it's technically evil to use file extension to determine file
 #content, but I'll have to life with any security issues it causes, I guess.
-PATTERN='\.\(\(\(mp3\)\|\(ogg\)\)\|\(flv\)\)\|\(flac\)$'
+PATTERN='\.\(mp3\)\|\(ogg\)\|\(mp4\)\|\(flv\)\|\(flac\)$'
 hostname=`cat /etc/hostname`
 if [ -e $FILE ]; then
 	rm $FILE
