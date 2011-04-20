@@ -24,7 +24,7 @@ class EntryExample:
                 playname="playmeonce"
         #print playname +" "+ regex
         import os
-        os.execlp("/bin/bash","/bin/bash","-c","/home/jgilmore/bin/" + playname + " " + regex)
+        os.execlp("/bin/bash","/bin/bash","-c","~/bin/" + playname + " " + regex)
 
     def ok(self, widget):
         self.done(widget, self.regex )

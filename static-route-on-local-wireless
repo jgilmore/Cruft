@@ -8,7 +8,7 @@
 
 
 ESSID_MINE=linksys_OW_25001
-INTERFACE_MINE=wlan0
+INTERFACE_MINE=wlan1
 
 case "$reason" in
 	BOUND|RENEW|REBOOT)
