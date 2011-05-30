@@ -9,3 +9,5 @@ playrandom and its aliases playonce playmeonce playme, and the GUI script which 
 Dontcatchfire.sh is also technically in use daily, but whatever. 
 
 Documentation is sparse to non-existant, in contrast to dependancies, which are abundant.
+
+Unless otherwise specified, licensed under GPL V3 or later

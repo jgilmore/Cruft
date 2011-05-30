@@ -46,7 +46,7 @@ function diediedie { kill %1;kill%2 ; }
 trap diediedie SIGCHLD 
 wait %2
 # Give an audible warning
-playonce I hear the wind blow fingertips
+playonce -m I hear the wind blow fingertips
 # Terminate both processes (we don't care which one quit)
 kill %1
 kill %2

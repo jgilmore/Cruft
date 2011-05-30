@@ -9,7 +9,7 @@ SLEEPARG=`zenity --entry --title="Simple Timer" \
 sleep ${SLEEPARG%-*}
 
 
-play /usr/share/sounds/startup3.wav
+playonce forget remember don.t
 
 zenity --info --title="Simple Timer" --text="The ${SLEEPARG#*-} Timer is up." &
 

@@ -7,8 +7,9 @@ MASTERHOST=herb
 #Pattern is the initial filter to assure that we get only sound files.
 #I know it's technically evil to use file extension to determine file
 #content, but I'll have to life with any security issues it causes, I guess.
-PATTERN='\.\(\(\(mp3\)\|\(ogg\)\)\|\(flv\)\)\|\(flac\)$'
+PATTERN='\.\(mp3\)\|\(ogg\)\|\(mp4\)\|\(flv\)\|\(flac\)$'
 hostname=`cat /etc/hostname`
+AUDIOBOOKSETTING=-v
 if [ -e $FILE ]; then
 	rm $FILE
 fi
@@ -18,6 +19,14 @@ while [ $# -gt 0 ]; do
     case "$1" in
         -v)
             echo Play Random V1.1
+			exit
+        ;; 
+        -b)
+            echo Listening to an Audiobook
+            AUDIOBOOKSETTING=-i
+        ;; 
+        -m)
+			DISPLAY=""
         ;; 
 		-r)
 			echo Regenerating the cached local file list.
@@ -37,11 +46,13 @@ while [ $# -gt 0 ]; do
         -*)
             cat <<'EOF'
 usage: playrandom [-v] [-h|--help|-?] [directory...] [word...]
-usage: playme [-v] [-h|--help|-?] [directory...] [word...]
-usage: playonce [-v] [-h|--help|-?] [directory...] [word...]
-usage: playmeonce [-v] [-h|--help|-?] [directory...] [word...]
+    Can also be called as "playme" "playonce" or "playmeonce" to disable randomization or repeating.
     -v: version
+    -b: Play only files with "audiobook" in the path/filename, rather than never playing them
+        Also disables randomization and repeating, like "playmeonce"
+    -m: Use mplayer, instead of audacious. Even if audacious is available.
     -h|--help|-?: print this help
+    -r: Regenerate local play lists
     [directory...]: names of directories to gather files from. If ommited,
         the "library" directory ($LIBRARY) will be used, and the keyword
         "not audiobooks" is assumed.
@@ -131,7 +142,7 @@ if [ ! -e $FILE ]; then
 			echo I am the master host, using my local files. 1>&2
 			cat $CACHEDLIST
 		fi
-	) | grep -i "$PATTERN" | grep -v 'Audiobooks' >> $FILE
+	) | grep -i "$PATTERN" | grep $AUDIOBOOKSETTING 'Audiobooks' >> $FILE
     echo found `cat $FILE | wc -l` songs so far
 fi
 
@@ -172,7 +183,7 @@ if [ "$FILELINES" -eq 0 ];then
     exit 1
 fi
 
-if [ "${0##*/}" = "playme" -o "${0##*/}" = "playmeonce" ]; then
+if [ "${0##*/}" = "playme" -o "${0##*/}" = "playmeonce" -o "$AUDIOBOOKSETTING" = "-i" ]; then
     #For playme, sort the playlist.
     echo Sorting Playlist
     sort $FILE >$FILE.random
@@ -183,23 +194,18 @@ else
     # file and remove it from the non-random file.
     echo Randomizing Playlist
     sort -R $FILE >$FILE.random
-#    LINELIST=`bash -c "echo {$FILELINES..1}"`
-#    rm ${FILE}.random
-#    for th in $LINELIST;do
-#        SONGNUM=$(( $RANDOM % $th + 1 ))
-#        SONG=`head -$SONGNUM $FILE | tail -1`
-#        echo "$SONG" >>${FILE}.random
-#        head -$(($SONGNUM - 1)) $FILE >> ${FILE}.temp
-#        tail -$(($th - $SONGNUM)) $FILE >>${FILE}.temp 
-#        rm $FILE
-#        mv ${FILE}.temp $FILE
-#        echo -ne $th "\r"
-#    done
 fi
     
 #Displaylist
 if [ "$FILELINES" -lt 60 ] ; then
     cat $FILE
+fi
+if [ -x /usr/bin/audacious ] ; then
+	if [ "$DISPLAY" != "" ]; then
+		urlencode $FILE > $FILE.m3u
+		audacious --enqueue $FILE.m3u 
+		exit	
+	fi
 fi
 
 #Forever, play a random song.
@@ -207,7 +213,7 @@ while mplayer -vo null -nojoystick -playlist ${FILE}.random ; do
     if [ "$FILELINES" -lt 60 ] ; then
         cat $FILE
     fi
-    if [ "${0##*/}" = "playonce" -o "${0##*/}" = "playmeonce" ]; then
+    if [ "${0##*/}" = "playonce" -o "${0##*/}" = "playmeonce" -o "$AUDIOBOOKSETTING" = "-i" ]; then
         exit
     fi
 done

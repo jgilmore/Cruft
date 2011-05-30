@@ -1,12 +1,100 @@
 #!/usr/bin/python
+import os
+import glob
+import subprocess
+from cPickle import load
 
-import libgmail
-from cPickle import load, dump
+
+
+def mail(From, to, subject, text, filelist=[],bcc="",cc="",headers=""):
+	from email.MIMEMultipart import MIMEMultipart
+	from email.MIMEBase import MIMEBase
+	from email.MIMEText import MIMEText
+	from email import Encoders
+	from email.generator import Generator
+	""" send mail to somebody. Return true on success, false on failure
+
+		"to" "bcc" and "cc" may be lists of addresses, or a single address as a string.
+
+		Note: all attached files are base64 encoded and stored IN MEMORY before being sent to
+		the server. You probably will not be able to send any file or set of files even close to as
+		large as your computers memory.
+
+		All attachements are given the mime-type "application/octet-stream" which is wrong.
+	"""
+	msg = MIMEMultipart()
+
+	msg['From'] = From
+	msg['Subject'] = subject
+	try:
+		test = to.lower()
+		#no error? to is a string, convert it to a list.
+		sendto=[to]
+		msg['To'] = to
+	except AttributeError:
+		#to is a list
+		sendto=[]
+		for addr in to:
+			sendto.append(addr)
+			msg.__setitem__('To',addr)
+
+	if cc:
+		msg['Cc'] = cc
+		try:
+			test = bcc.lower()
+			to.append(bcc)
+			msg.__setitem__('Cc',addr)
+		except AttributeError:
+			for addr in bcc:
+				sendto.append(addr)
+				msg.__setitem__('Cc',addr)
+	if bcc:
+		#The point of "bcc" is that it's not in the message header, only the smtp reciepients.
+		#msg['Bcc'] = bcc
+		try:
+			test = cc.lower()
+			to.append(cc)
+		except AttributeError:
+			for addr in bcc:
+				sendto.append(addr)
+	if headers:
+		try:
+			test = headers.lower()
+			#no error? headers is a string, convert it to a list.
+			headers=[headers]
+		except AttributeError:
+			#already a list
+			pass
+		for header in headers:
+			name, value = header.split(':',1)
+			msg.__setitem__(name,value)
+
+	msg.attach(MIMEText(text))
+
+	for attach in filelist:
+		part = MIMEBase('application', 'octet-stream')
+		#The "read" call reads and encodes all files INTO MEMORY!!!
+		# This severly limits the sendable file size.
+		#TODO: rewrite email and smtplib to accept pointers, so these things can be done on the fly,
+		#using MUCH less memory.
+		part.set_payload(open(attach, 'rb').read())
+		Encoders.encode_base64(part)
+		part.add_header('Content-Disposition',
+				  'attachment; filename="%s"' % os.path.basename(attach))
+		msg.attach(part)
+
+	sendmail=subprocess.Popen(["/usr/sbin/sendmail","-i"] + sendto,stdin=subprocess.PIPE,bufsize=-1)
+	t = Generator(sendmail.stdin,mangle_from_=False,maxheaderlen=0)
+	t.flatten(msg)
+	sendmail.stdin.close()
+	return sendmail.wait()
+
+
 
 #Open for reading
+
 try:
-	from os.path import expanduser
-	f=open(expanduser("~/.gmailpasswd"),"r")
+	f=open(os.path.expanduser("~/.gmailpasswd"),"r")
 except IOError, (errno, strerror):
 	if errno == 2:
 		print("""
@@ -24,26 +112,84 @@ except IOError, (errno, strerror):
 		print "Unhandled IO error type"
 		raise
 
-#Load the stored credentials.
-credentials=load(f)
+#close the file - I really only needed to verify its existance.
 f.close()
 
-#debug
-print credentials
-exit(17)
+#Time to beat:
+mytime=os.stat(os.path.expanduser("~/.gmailpasswd")).st_mtime
 
+# cycle through all documents in /doc, encrypt and email any which are newer
+# filestring = string list of files
+fileslist=[]
+bodystring=""
+filestring=""
+subject=""
+def checkNadd(filename):
+	""" Add a file to the file list. IF its newer """
+	global filestring
+	global fileslist
+	global bodystring
+	global subject
+	status   = os.stat(filename)
+	if status.st_mtime > mytime:
+		fileslist.append(filename)
+		filestring += filename + "\n"
+		#print filename
+		if os.path.basename(filename).startswith("Journal") and filename.endswith(".txt"):
+			f=open(filename,"r")
+			addme=False
+			for line in f:
+				if line.endswith(":"):
+					addme=False
+				if addme:
+					bodystring+=line
+				if line.lower().lstrip().startswith("anna:"):
+					addme=True
+					bodystring+="From " + filename + "\n\n"
+					name, sub=line.split(":",1)
+					if sub:
+						subject += sub.strip() + " "
+			f.close()
+	#else:
+	#	print str(status.st_mtime) + "<" + str(mytime)
+	#For journal entries, add any "anna:" sections to the email body.
 
-#login to gmail
-ga=libgmail.GmailAccount("j.arthur.gilmore","nDhiRp8w")
-ga.login()
+# Backup my Documents directory
+for root,dirs,files in os.walk(os.path.expanduser("~/docs")):
+	#print root, dirs, files
+	files.sort()
+	for file in files:
+		checkNadd(os.path.join(root,file))
 
-#compose our message
-msg=libgmail.GmailComposedMessage(
-	"j.arthur.gilmore@gmail.com",
-	"Automatic Safe Backup",
-	"non-empty body text is not required",
-	filenames=["/home/jgilmore/Safe.dat"])
-try:
-	ga.sendMessage(msg)
-except http404:
-	ga.sendMessage(msg)
+# Backup my firefox bookmarks file
+for root,dirs,files in os.walk(glob.glob(os.path.expanduser("~/.mozilla/firefox/*.default/bookmarkbackups"))[0]):
+	#print root, dirs, files
+	files.sort()
+	for file in files:
+		checkNadd(os.path.join(root,file))
+
+if len(fileslist) == 0:
+	exit(0)
+
+bodystring += "\n\n Changed files included in the backup:\n\n" + filestring
+
+fileslist.insert(0,"-P")
+fileslist.insert(0,"-c")
+fileslist.insert(0,"/bin/tar")
+#print fileslist
+#print fileslist
+#print filestring
+#print bodystring
+# This implements "tar -c --strip-components
+tar=subprocess.Popen(fileslist,stdout=subprocess.PIPE,bufsize=-1)
+f=open("/tmp/autobackup.tar.gpg","wb")
+gpg=subprocess.Popen(["/usr/bin/gpg","-r","j.arthur.gilmore@gmail.com","--encrypt"],stdout=f,stdin=tar.stdout,bufsize=-1)
+
+if subject == "":
+	subject="Autobackup Email"
+
+if gpg.wait() == 0 and tar.wait() == 0:
+	if not mail("j.arthur.gilmore@gmail.com","anna.gilmore@gmail.com",subject,bodystring,filelist=["/tmp/autobackup.tar.gpg","/home/jgilmore/Safe.dat"]):
+		#	os.mtime(os.path.expanduser("~/.gmailpasswd"),None)
+		os.execv("/usr/bin/touch",("touch",os.path.expanduser("~/.gmailpasswd")))
+

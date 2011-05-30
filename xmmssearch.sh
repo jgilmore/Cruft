@@ -61,13 +61,13 @@ class EntryExample:
                                   
         check = gtk.CheckButton("Randomize")
         hbox.pack_start(check, True, True, 0)
-        check.set_active(True)
+        check.set_active(False)
         check.show()
         self.randomize=check
     
         check = gtk.CheckButton("Repeat")
         hbox.pack_start(check, True, True, 0)
-        check.set_active(True)
+        check.set_active(False)
         check.show()
         self.repeat=check
 

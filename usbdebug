@@ -1,0 +1,44 @@
+ACTION=remove
+BASH=/bin/bash
+BASH_ARGC=()
+BASH_ARGV=()
+BASH_LINENO=([0]="0")
+BASH_SOURCE=([0]="/home/jgilmore/bin/usb-mouse-connected")
+BASH_VERSINFO=([0]="3" [1]="2" [2]="39" [3]="1" [4]="release" [5]="i486-pc-linux-gnu")
+BASH_VERSION='3.2.39(1)-release'
+BUSNUM=002
+DEVICE=/proc/bus/usb/002/008
+DEVLINKS=/dev/char/189:135
+DEVNUM=008
+DEVPATH=/devices/pci0000:00/0000:00:0b.0/usb2/2-2
+DEVTYPE=usb_device
+DIRSTACK=()
+EUID=0
+GROUPS=()
+HOSTNAME=bertha
+HOSTTYPE=i486
+IFS=$' \t\n'
+MACHTYPE=i486-pc-linux-gnu
+MAJOR=189
+MINOR=135
+OPTERR=1
+OPTIND=1
+OSTYPE=linux-gnu
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PHYSDEVBUS=usb
+PIPESTATUS=([0]="0")
+PPID=3920
+PRODUCT=46d/c016/340
+PS4='+ '
+PWD=/
+SEQNUM=1323
+SHELL=/bin/bash
+SHELLOPTS=braceexpand:hashall:interactive-comments
+SHLVL=1
+SUBSYSTEM=usb
+TERM=dumb
+TYPE=0/0/0
+UDEVD_EVENT=1
+UDEV_LOG=3
+UID=0
+_=TouchpadOff=0
