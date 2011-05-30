@@ -9,6 +9,7 @@ MASTERHOST=herb
 #content, but I'll have to life with any security issues it causes, I guess.
 PATTERN='\.\(mp3\)\|\(ogg\)\|\(mp4\)\|\(flv\)\|\(flac\)$'
 hostname=`cat /etc/hostname`
+AUDIOBOOKSETTING=-v
 if [ -e $FILE ]; then
 	rm $FILE
 fi
@@ -19,6 +20,10 @@ while [ $# -gt 0 ]; do
         -v)
             echo Play Random V1.1
 			exit
+        ;; 
+        -b)
+            echo Listening to an Audiobook
+            AUDIOBOOKSETTING=-i
         ;; 
         -m)
 			DISPLAY=""
@@ -41,10 +46,10 @@ while [ $# -gt 0 ]; do
         -*)
             cat <<'EOF'
 usage: playrandom [-v] [-h|--help|-?] [directory...] [word...]
-usage: playme [-v] [-h|--help|-?] [directory...] [word...]
-usage: playonce [-v] [-h|--help|-?] [directory...] [word...]
-usage: playmeonce [-v] [-h|--help|-?] [directory...] [word...]
+    Can also be called as "playme" "playonce" or "playmeonce" to disable randomization or repeating.
     -v: version
+    -b: Play only files with "audiobook" in the path/filename, rather than never playing them
+        Also disables randomization and repeating, like "playmeonce"
     -m: Use mplayer, instead of audacious. Even if audacious is available.
     -h|--help|-?: print this help
     -r: Regenerate local play lists
@@ -137,7 +142,7 @@ if [ ! -e $FILE ]; then
 			echo I am the master host, using my local files. 1>&2
 			cat $CACHEDLIST
 		fi
-	) | grep -i "$PATTERN" | grep -v 'Audiobooks' >> $FILE
+	) | grep -i "$PATTERN" | grep $AUDIOBOOKSETTING 'Audiobooks' >> $FILE
     echo found `cat $FILE | wc -l` songs so far
 fi
 
@@ -178,7 +183,7 @@ if [ "$FILELINES" -eq 0 ];then
     exit 1
 fi
 
-if [ "${0##*/}" = "playme" -o "${0##*/}" = "playmeonce" ]; then
+if [ "${0##*/}" = "playme" -o "${0##*/}" = "playmeonce" -o "$AUDIOBOOKSETTING" = "-i" ]; then
     #For playme, sort the playlist.
     echo Sorting Playlist
     sort $FILE >$FILE.random
@@ -208,7 +213,7 @@ while mplayer -vo null -nojoystick -playlist ${FILE}.random ; do
     if [ "$FILELINES" -lt 60 ] ; then
         cat $FILE
     fi
-    if [ "${0##*/}" = "playonce" -o "${0##*/}" = "playmeonce" ]; then
+    if [ "${0##*/}" = "playonce" -o "${0##*/}" = "playmeonce" -o "$AUDIOBOOKSETTING" = "-i" ]; then
         exit
     fi
 done
