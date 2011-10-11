@@ -171,7 +171,8 @@ for root,dirs,files in os.walk(glob.glob(os.path.expanduser("~/.mozilla/firefox/
 if len(fileslist) == 0:
 	exit(0)
 
-bodystring += "\n\n Changed files included in the backup:\n\n" + filestring
+#bodystring += "\n\n Changed files included in the backup:\n\n" + filestring
+bodystring += "\n\n Changed file list suppresed.\n\n"
 
 fileslist.insert(0,"-P")
 fileslist.insert(0,"-c")
