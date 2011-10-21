@@ -33,11 +33,12 @@ PATH=/home/jgilmore/bin:/usr/local/bin:/usr/bin:/bin:/usr/X11R6/bin:/usr/games:/
 
 local head
 #If using ssh, set machine name to red.
-if [ -n "$SSH_TTY" ]; then
-    head="%n@%{%$fg_bold[red]%}%m%{$reset_color%}"
+set
+if [ "$SSH_TTY" ]; then
+    head="%n@%{$fg_bold[red]%}%m%{$reset_color%}"
 else
     head='%n@%m'
 fi
-    PROMPT="%n@%m%3~%(?.%{$fg[green]%}:%).%{$fg[red]%} %? :()%{$reset_color%}%#"
+    PROMPT="$head%3~%(?.%{$fg[green]%}:%).%{$fg[red]%} %? :()%{$reset_color%}%#"
 
 
