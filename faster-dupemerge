@@ -217,13 +217,13 @@ if ($skip_hashes && $skip_compares) {
 if (defined($lock_file) && !$dry_run) {
 	sysopen(LOCK_FILE, $lock_file, O_CREAT|O_RDONLY, 0666) or die "open: $lock_file: $!";
 	flock(LOCK_FILE, LOCK_EX|LOCK_NB) or die "flock: $lock_file: LOCK_EX|LOCK_NB: $!";
-	print STDERR "Locked '$lock_file' in LOCK_EX mode.\n" if $verbose;
+	print STDOUT "Locked '$lock_file' in LOCK_EX mode.\n" if $verbose;
 	$lock_obtained = 1;
 }
 
 END {
 	if ($lock_obtained && !$dry_run) {
-		print STDERR "Removing '$lock_file'.\n" if $verbose;
+		print STDOUT "Removing '$lock_file'.\n" if $verbose;
 		unlink($lock_file) or warn "unlink: $lock_file: $!";
 	}
 }
@@ -251,7 +251,7 @@ my $quoted_sort_command = "'" . join("' '", @quoted_sort_command) . "'";
 my @quoted_find_command = @find_command;
 grep(tick_quote($_), @quoted_find_command);
 my $quoted_find_command = "'" . join("' '", @quoted_find_command) . "'";
-print STDERR "find command:  $quoted_find_command | $quoted_sort_command\n" if $verbose;
+print STDOUT "find command:  $quoted_find_command | $quoted_sort_command\n" if $verbose;
 
 open(FIND, "$quoted_find_command | $quoted_sort_command |") or die "open: $!";
 $/ = "\0";
@@ -269,7 +269,7 @@ sub link_files {
 
 	my $quoted_from = tick_quote($from);
 	my $quoted_to = tick_quote($to);
-	print STDERR "ln -f $quoted_from $quoted_to\n";
+	print STDOUT "ln -f $quoted_from $quoted_to\n";
 
 	return if $dry_run;
 
@@ -360,7 +360,7 @@ incumbent_file:
 						}
 
 						if ($incumbent_ino != $incumbent) {
-							warn "$incumbent_file: expected inode $incumbent, found $incumbent_ino";
+							#warn "$incumbent_file: expected inode $incumbent, found $incumbent_ino";
 							$surprises++;
 							next incumbent_file;
 						}
@@ -380,7 +380,7 @@ candidate_file:
 							}
 
 							if ($candidate_ino != $candidate) {
-								warn "$candidate_file: expected inode $candidate, found $candidate_ino";
+								#warn "$candidate_file: expected inode $candidate, found $candidate_ino";
 								$surprises++;
 								next candidate_file;
 							}
@@ -408,7 +408,7 @@ candidate_file:
 										# Some kind of I/O error is more likely, so this message cannot be turned off.
 										# On the other hand, if we're skipping hashes, _all_ files will have the same hash,
 										# so the warning in that case is quite silly.  Hmmm.
-										print STDERR "$quoted_incumbent_file and $quoted_candidate_file have same hash but do not compare equal!\n" unless $skip_hashes;
+										print STDOUT "$quoted_incumbent_file and $quoted_candidate_file have same hash but do not compare equal!\n" unless $skip_hashes;
 									} else {
 										$identical = 1;
 									}
@@ -433,7 +433,7 @@ candidate_file:
 
 								if (defined($stop_loop{$incumbent_file}->{$candidate_file}) ||
 								    defined($stop_loop{$candidate_file}->{$incumbent_file})) {
-									print STDERR "Already considered linking '$incumbent_file' and '$candidate_file', not trying again now\n";
+									print STDOUT "Already considered linking '$incumbent_file' and '$candidate_file', not trying again now\n";
 								} else {
 									$stop_loop{$incumbent_file}->{$candidate_file} = 1;
 									$stop_loop{$candidate_file}->{$incumbent_file} = 1;
@@ -555,7 +555,7 @@ while (<FIND>) {
 
 	$inode_to_file_name{$inode}->{$name} = undef;
 
-	print STDERR "$name\n" if $verbose;
+	print STDOUT "$name\n" if $verbose;
 }
 
 merge_files;
