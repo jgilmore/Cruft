@@ -78,5 +78,4 @@ case $TERM in
         preexec () { print -Pn "\e]0;zsh:%n@%m: %~,$1 \a" }
         ;;
 esac
-echo test
 fortune Scripture\ Mastery
