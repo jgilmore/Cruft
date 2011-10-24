@@ -36,8 +36,32 @@ compinit
 HISTFILE=~/.histfile
 HISTSIZE=10000
 SAVEHIST=10000
-bindkey -v
 # End of lines configured by zsh-newuser-install
+
+#use vi mode
+bindkey -v
+
+#use arrow keys, home, etc.
+bindkey '' backward-delete-char #backspace
+bindkey '[3~' delete-char #delete
+bindkey 'OH' beginning-of-line #home
+bindkey 'OF' end-of-line #end
+
+#Others, I don't actually use these much...
+bindkey '^R' history-incremental-search-backward
+bindkey '[1;5D' emacs-backward-word #^<left>
+bindkey '[1;5C' emacs-forward-word #^<right>
+
+#Make the history commands put the cursor on the END of the line.
+bindkey "\eOA" up-line-or-history
+bindkey "\eOB" down-line-or-history
+bindkey "\e[A" up-line-or-history
+bindkey "\e[B" down-line-or-history
+
+#Shift home and end for marking (and presumably deleteing) the end/begining of a line.
+
+
+
 
 autoload colors
 colors
