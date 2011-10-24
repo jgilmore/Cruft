@@ -6,6 +6,7 @@
 #This seems to happen even after "xauth local:", probably because Xlib isn't able to find a file of some sort in th
 #user's home directory.
 export DISPLAY=:0.0;
+export XAUTHORITY=/home/jgilmore/bin/.Xauthority
 
 #Check status of screensaver - if it's running, do nothing.
 if gnome-screensaver-command -q | grep inactive > /dev/null; then
