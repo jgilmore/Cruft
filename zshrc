@@ -53,14 +53,24 @@ fi
 
 PATH=/home/jgilmore/bin:/usr/local/bin:/usr/bin:/bin:/usr/X11R6/bin:/usr/games:/sbin:/usr/sbin
 
-local head
+local head CH USERCOLOR MACHINECOLOR
+#Set the color of the username depending on the md5sum, so each username will have a different color. Don't do white or black.
+CH=1
+while USERCOLOR=`echo $USER | md5sum | cut -c $CH-$CH`; echo $USERCOLOR | grep '[07a-z]'>/dev/null; do 
+    CH=$(( $CH + 1 )); 
+done
+
+USERCOLOR="$fg[$color[3$USERCOLOR]]"
+
 #If using ssh, set machine name to red.
 if [ "$SSH_TTY" ]; then
-    head="%n@%{$fg_bold[red]%}%m%{$reset_color%}"
+    MACHINECOLOR="$fg_bold[red]"
 else
-    head='%n@%m'
+    MACHINECOLOR="$reset_color"
 fi
-    PROMPT="$head%3~%(?.%{$fg[green]%}:%).%{$fg[red]%} %? :()%{$reset_color%}%#"
+head="%{$USERCOLOR%}%n%{$reset_color%}@%{$MACHINECOLOR%}%m%{$reset_color%}"
+
+PROMPT="$head%3~%(?.%{$fg[green]%}:%).%{$fg[red]%} %? :()%{$reset_color%}%#"
 
 case $TERM in
     xterm*)
@@ -68,5 +78,5 @@ case $TERM in
         preexec () { print -Pn "\e]0;zsh:%n@%m: %~,$1 \a" }
         ;;
 esac
-
+echo test
 fortune Scripture\ Mastery
