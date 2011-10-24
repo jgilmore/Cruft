@@ -42,6 +42,11 @@ bindkey -v
 autoload colors
 colors
 
+autoload run-help
+help(){
+    bash -c "help $@"
+}
+
 
 # enable color support of ls and also add handy aliases
 if [ "$TERM" != "dumb" ]; then
