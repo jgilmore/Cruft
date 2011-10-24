@@ -1,0 +1,20 @@
+#!/bin/sh
+
+
+#Probably running from crontab.
+#Note that if this isn't run as the correct user, will get "can't open display :0.0, no protocol specified" 
+#This seems to happen even after "xauth local:", probably because Xlib isn't able to find a file of some sort in th
+#user's home directory.
+export DISPLAY=:0.0;
+
+#Check status of screensaver - if it's running, do nothing.
+if gnome-screensaver-command -q | grep inactive > /dev/null; then
+    #If the screensaver isn't running, log the title of the active window
+    xwininfo -id `xdotool getactivewindow` | grep Window\ id | logger
+    #This command lists the tabs that have been opened in the current firefox session.
+    #grep -Eo '"entries":\[{"url":"[^"]*"' /home/jgilmore/.mozilla/firefox/*.default/sessionstore.js | sed 's/^.*:"//; s/"$//'
+    #Saved here for possible future reference
+fi
+
+
+
