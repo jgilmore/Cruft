@@ -58,12 +58,11 @@ bindkey "\eOB" down-line-or-history
 bindkey "\e[A" up-line-or-history
 bindkey "\e[B" down-line-or-history
 
-#Shift home and end for marking (and presumably deleteing) the end/begining of a line.
-
-
-
+#modifications to "command mode"
+bindkey -M vicmd "u" undo #by default vi-mode doesn't have multi-level undo. Fixed.
 
 autoload colors
+#referance colors, as if we don't then fg and bg variables aren't defined.
 colors
 
 autoload run-help
