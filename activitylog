@@ -11,10 +11,21 @@ export XAUTHORITY=$HOME/.Xauthority
 #Check status of screensaver - if it's running, do nothing.
 if gnome-screensaver-command -q | grep inactive > /dev/null; then
     #If the screensaver isn't running, log the title of the active window
-    xwininfo -id `xdotool getactivewindow` | grep Window\ id | logger
-    #This command lists the tabs that have been opened in the current firefox session.
-    #grep -Eo '"entries":\[{"url":"[^"]*"' /home/jgilmore/.mozilla/firefox/*.default/sessionstore.js | sed 's/^.*:"//; s/"$//'
-    #Saved here for possible future reference
+    ACTIVE=`xdotool getactivewindow`
+    TITLE=`xwininfo -id $ACTIVE | grep 'xwininfo:' | cut -c 32-`
+    if echo "$TITLE" | grep '"Minecraft"'; then
+        #If minecraft is being played via my launch script (which displays the usename in the titlebar of the shell)
+        #Log that instead of the active window's title
+        MINE=`xdotool search --title 'minecraft being played by\:'`
+        if [ -n "$MINE" ]; then
+            #If we can't figure out which user, just log "Minecraft"
+            TITLE=`xwininfo -id $MINE | grep 'xwininfo:' | cut -c 32-`
+        fi
+        #This command lists the tabs that have been opened in the current firefox session.
+        #grep -Eo '"entries":\[{"url":"[^"]*"' /home/jgilmore/.mozilla/firefox/*.default/sessionstore.js | sed 's/^.*:"//; s/"$//'
+        #Saved here for possible future reference
+    fi
+    logger -t activitylog -p local4.info -- "$TITLE"
 fi
 
 
