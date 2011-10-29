@@ -1,0 +1,4 @@
+#!/bin/bash
+sudo cat $XAUTHORITY >~/.Xauthority
+export XAUTHORITY=~/.Xauthority
+export EDITOR="vim"
