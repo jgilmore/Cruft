@@ -2,31 +2,52 @@
 
 
 #Probably running from crontab.
-#Note that if this isn't run as the correct user, will get "can't open display :0.0, no protocol specified" 
-#This seems to happen even after "xauth local:", probably because Xlib isn't able to find a file of some sort in th
-#user's home directory.
-export DISPLAY=:0.0;
-export XAUTHORITY=$HOME/.Xauthority
 
-#Check status of screensaver - if it's running, do nothing.
+#Skip the whole "figure out the proper runtime environment" crap! This is so stupid to have to set two dozen variables to connect to crap.
+# Instead, just find the currently running screensaver, and pirate it's evironment settings! Cheap, quick, easy, future-proof, and stupid.
+# I can't believe I'm doing this.o
+
+#First, find the userID and PID of the gnome-screensaver process
+#If there's more than one, abort w/ error
+if [ `ps axu | grep 'gnome-screensaver$' | wc -l` -gt 1 ]; then
+    #TODO: figure out which virtual terminal is active, and which screensaver process is running for that
+    #X instance. To much work for now.
+    logger -t activitylog -p local4.info "ERROR: More than one screensaver?"
+    exit
+fi
+XUSER=`ps axu | grep 'gnome-screensaver$' | sed 's/ \+/\t/g'| cut -f 1`
+PID=`ps axu | grep 'gnome-screensaver$' | sed 's/ \+/\t/g'| cut -f 2`
+
+
+#Second, read in the processes environment. Don't use "LS_COLORS" b/c it causes parse errors later.
+#we need the "export" b/c the gnome-screensaver-command etc needs these vars.
+SetEnvironment=`cat /proc/$PID/environ | tr '\0' '\n' | grep -v COLORS | sed 's/^/export /'`
+
+runprog='
+#singlequote is FORBIDDEN in this area!
+#Check status of screensaver - if it%s running, do nothing.
+#gnome-screensaver-command -q
 if gnome-screensaver-command -q | grep inactive > /dev/null; then
-    #If the screensaver isn't running, log the title of the active window
+    #If the screensaver isn%t running, log the title of the active window
     ACTIVE=`xdotool getactivewindow`
-    TITLE=`xwininfo -id $ACTIVE | grep 'xwininfo:' | cut -c 32-`
-    if echo "$TITLE" | grep '"Minecraft"'; then
+    TITLE=`xwininfo -id $ACTIVE | grep "xwininfo:" | cut -c 32-`
+    if echo "$TITLE" | grep "\"Minecraft\""   >/dev/null ; then
         #If minecraft is being played via my launch script (which displays the usename in the titlebar of the shell)
-        #Log that instead of the active window's title
-        MINE=`xdotool search --title 'minecraft being played by\:'`
+        #Log that instead of the active window%s title
+        MINE=`xdotool search --title "minecraft being played by\:"`
         if [ -n "$MINE" ]; then
-            #If we can't figure out which user, just log "Minecraft"
-            TITLE=`xwininfo -id $MINE | grep 'xwininfo:' | cut -c 32-`
+            #If we can figure out which user, log that windows% title.
+            TITLE=`xwininfo -id $MINE | grep "xwininfo:" | cut -c 32-`
         fi
-        #This command lists the tabs that have been opened in the current firefox session.
-        #grep -Eo '"entries":\[{"url":"[^"]*"' /home/jgilmore/.mozilla/firefox/*.default/sessionstore.js | sed 's/^.*:"//; s/"$//'
-        #Saved here for possible future reference
     fi
     logger -t activitylog -p local4.info -- "$TITLE"
 fi
+'
+        #This command lists the tabs that have been opened in the current firefox session.
+        #grep -Eo '"entries":\[{"url":"[^"]*"' /home/jgilmore/.mozilla/firefox/*.default/sessionstore.js | sed 's/^.*:"//; s/"$//'
+        #Saved here for possible future reference
 
+#Actually execute the program in a custom environment where we 
+sudo -u $XUSER sh -c "$SetEnvironment;$runprog"
 
 
