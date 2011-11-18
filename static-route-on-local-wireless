@@ -17,7 +17,7 @@ case "$reason" in
 	set >setinfo
 	if echo $new_ip_address | grep '^192\.168\.3\....' ; then
 		ifconfig $interface $new_ip_address
-		if wget -T 2 --tries=1 --timestamping --no-host http://herb/.master_playlist.m3u ; then
+		if wget -T 2 --tries=1 --timestamping --no-host http://herb/Music/.master_playlist.m3u ; then
 			#Find our hostname in /etc/hosts, and try to grab our ip address.
 			hostname=`cat /etc/hostname`
 			IP_MINE=`cat /etc/hosts | grep $hostname | sed 's/.*\(192\.168\.[0-9]\{1,3\}\.[0-9]\{1,3\}\).*/\1/'`
