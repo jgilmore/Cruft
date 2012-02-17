@@ -1,0 +1,84 @@
+#!/bin/sh
+##Documention and license Section
+# Copyright 2012 John Gilmore
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# This script will atempt to keep multiple versions of Safe.dat coordinated between machines.
+# The safe.dat file is assumed to be strongly encrypted, and thus opaque - we will not attempt to
+# do any line-item merging between versions.
+# 
+# See http://passwordsafe.sourceforge.net/
+# also http://freecode.com/projects/myps
+#
+# Known BUGS/limitations.
+#   1. we don't check to make sure file timestamps are reasonable. Clock skew could do bad things.
+#   2. we copy the newest safe to all hosts, even the one we got it from. Inefficient use of network!
+#   3. rysnc is useless here, as the file is encrypted (thus transmitting deltas is pointless.)
+#   4. "saving" trivial information in a safe, even "touch"ing it, is enough to update it,
+#       causing it to copy around everywhere, an potentially conflicting with actual changes.
+#   Most certainly others.
+#
+# patches, pull requests, and comments all gladly welcomed.
+#
+##Configuration Section (change these)
+
+#list usernames, hosts etc. to collect the safe from.
+# "username@host" or simply "host"
+HOSTS='herb anna@lizzy anna@herb localhost'
+
+#Could replace this with a auto-increment counter or something. Should be unique, though.
+DIR="$(date)"
+
+#cd to the directory you want all this cruft to end up in. You could make this /tmp, but
+#I decided that it would be nice to keep this stuff around for future disaster recovery 
+#(i.e. Hey John, why don't I have the password I added last week?)
+cd ~/backup/Safes
+
+## Autocalculated stuff
+HOSTCOUNT=`echo $HOSTS|wc -w`
+mkdir "$DIR"
+cd "$DIR"
+
+
+## Program
+
+#Fetch safes from all hosts, into directory.
+for host in $HOSTS;do
+    #Note, no stderr redirect on this, we want to report scp errors.
+    scp -p ${host}:Safe.dat . >/dev/null
+    -e Safe.dat && mv Safe.dat "$(ls -l --time-style=full-iso Safe.dat | cut -c 38-56).$host.Safe.dat"
+done
+
+#Check and see if we have a problem (i.e. more than the last entry has a different date.)
+if [ `ls | sort | cut -c 1-19 | tail -n $HOSTCOUNT | head -n $(( $HOSTCOUNT -   1 )) | sort -u | wc -l` -gt 1 ]; then
+    #In short, if the "time" data is different on any of them (that's the sort --unique) but the last one, Barf!
+    echo "ERROR! More than one version found, human coordination is required to continue syncronization!"
+    echo "Most recently, versions can be found in ${host}:${PWD}"
+    exit 1
+fi  
+
+#find most recent and not-most-recent versions. Note that ISO time styles always sort with newest at the bottom.
+recent=`ls | sort | tail -n 1`
+old=`ls | sort | tail -n 2 | head -n 1`
+#Note the double %% stuff, forces removal of the largest possible match from the end of the filename. 
+#This will leave just the date, having gotten rid of the $host and "Safe.dat" parts.
+if [ "${old%%.*}" = "${recent%%.*}" ]; then
+    #echo "No need to update, old is recent"
+    exit 0
+else
+    #Push the most recent version out to all hosts/usernames.
+    for host in $HOSTS;do
+        scp -p "./$recent" "${host}:Safe.dat" >/dev/null
+    done
+fi

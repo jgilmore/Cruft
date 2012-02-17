@@ -106,4 +106,14 @@ case $TERM in
         preexec () { print -Pn "\e]0;zsh:%n@%m: %~,$1 \a" }
         ;;
 esac
+#Keep history file in cronological order, even when multiple terminals are writing to it.
+setopt -o inc_append_history
+setopt -o complete_in_word
+setopt -o always_to_end
+setopt -o listtypes
+#setopt +o always_last_prompt
+#setopt -o bash_auto_list
+setopt +o menu_complete
+
 fortune Scripture\ Mastery
+
