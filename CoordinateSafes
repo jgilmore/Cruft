@@ -57,7 +57,7 @@ cd "$DIR"
 for host in $HOSTS;do
     #Note, no stderr redirect on this, we want to report scp errors.
     scp -p ${host}:Safe.dat . >/dev/null
-    -e Safe.dat && mv Safe.dat "$(ls -l --time-style=full-iso Safe.dat | cut -c 38-56).$host.Safe.dat"
+    test -e Safe.dat && mv Safe.dat "$(ls -l --time-style=full-iso Safe.dat | cut -c 38-56).$host.Safe.dat"
 done
 
 #Check and see if we have a problem (i.e. more than the last entry has a different date.)
