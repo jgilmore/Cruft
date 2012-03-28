@@ -38,7 +38,7 @@
 HOSTS='herb anna@lizzy anna@herb localhost'
 
 #Could replace this with a auto-increment counter or something. Should be unique, though.
-DIR="$(date)"
+DIR="$(date --rfc-3339=seconds)"
 
 #cd to the directory you want all this cruft to end up in. You could make this /tmp, but
 #I decided that it would be nice to keep this stuff around for future disaster recovery 
@@ -65,20 +65,21 @@ if [ `ls | sort | cut -c 1-19 | tail -n $HOSTCOUNT | head -n $(( $HOSTCOUNT -   
     #In short, if the "time" data is different on any of them (that's the sort --unique) but the last one, Barf!
     echo "ERROR! More than one version found, human coordination is required to continue syncronization!"
     echo "Most recently, versions can be found in ${host}:${PWD}"
-    exit 1
+    #exit 1
 fi  
 
 #find most recent and not-most-recent versions. Note that ISO time styles always sort with newest at the bottom.
 recent=`ls | sort | tail -n 1`
-old=`ls | sort | tail -n 2 | head -n 1`
+old=`ls | sort | head -n 1`
 #Note the double %% stuff, forces removal of the largest possible match from the end of the filename. 
 #This will leave just the date, having gotten rid of the $host and "Safe.dat" parts.
 if [ "${old%%.*}" = "${recent%%.*}" ]; then
-    #echo "No need to update, old is recent"
+    echo "No need to update, old is recent"
     exit 0
 else
     #Push the most recent version out to all hosts/usernames.
     for host in $HOSTS;do
-        scp -p "./$recent" "${host}:Safe.dat" >/dev/null
+        scp -p "./$recent" "${host}:Safe.dat"
+        echo coppied $recent to $host
     done
 fi
