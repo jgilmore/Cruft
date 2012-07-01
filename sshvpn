@@ -1,5 +1,6 @@
 #!/bin/bash
 # Creates a VPN tunnel to "herbt". It does return to the prompt after a moment.
-sudo ssh -f -n -w0:0 herbt ifconfig tun0 192.168.5.1/24
-sudo ifconfig tun0 192.168.5.2/24
-sudo route add -net 192.168.3.0/24 tun0
+if sudo ssh -f -n -w0:0 herbt ifconfig tun0 192.168.5.1/24 ; then
+    sudo ifconfig tun0 192.168.5.2/24
+    sudo route add -net 192.168.3.0/24 tun0
+fi
